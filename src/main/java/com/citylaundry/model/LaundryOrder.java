@@ -51,6 +51,28 @@ public class LaundryOrder {
     @Column(precision = 12, scale = 2)
     private BigDecimal totalAmount = BigDecimal.ZERO;
 
+    /** 下单时基础估价（服务项+配送费） */
+    @Column(precision = 12, scale = 2)
+    private BigDecimal estimatedAmount = BigDecimal.ZERO;
+
+    /** 已确认的追加报价合计 */
+    @Column(nullable = false, precision = 12, scale = 2)
+    private BigDecimal extraAmount = BigDecimal.ZERO;
+
+    /** 预授权支付单 id（顾客确认收衣时创建） */
+    private Long preAuthPaymentId;
+
+    /** 关单校验是否阻断自动结算 */
+    @Column(nullable = false)
+    private boolean settlementBlocked = false;
+
+    /** 关单阻断原因（证据/确认/质检/包装取回缺项） */
+    @Column(length = 512)
+    private String settlementBlockReason;
+
+    /** 结算完成时间 */
+    private LocalDateTime settledAt;
+
     @Column(nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 }

@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>可审计取洗档案 · 城市干洗</title>
+<style>
+  :root{
+    --bg:#f4f6f8; --card:#fff; --line:#e3e8ee; --ink:#1f2933; --sub:#64717e;
+    --brand:#0f6b5c; --brand2:#0a4f44; --warn:#b45309; --danger:#b91c1c; --ok:#15803d;
+    --chip:#eef3f2; --info:#1d4ed8;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.6 -apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+       background:var(--bg);color:var(--ink)}
+  header{background:linear-gradient(120deg,var(--brand2),var(--brand));color:#fff;padding:16px 24px}
+  header h1{margin:0;font-size:18px;font-weight:700}
+  header p{margin:4px 0 0;opacity:.85;font-size:12px}
+  .wrap{max-width:1180px;margin:18px auto;padding:0 16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:14px}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  input,button,select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink)}
+  button{cursor:pointer;background:var(--brand);color:#fff;border-color:var(--brand);font-weight:600}
+  button.ghost{background:#fff;color:var(--brand)}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .muted{color:var(--sub);font-size:12px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px 16px}
+  .kv b{display:block;font-size:12px;color:var(--sub);font-weight:500}
+  .kv span{word-break:break-all}
+  h2{font-size:15px;margin:0 0 12px;display:flex;align-items:center;gap:8px}
+  h2 .no{background:var(--brand);color:#fff;border-radius:6px;padding:1px 8px;font-size:12px}
+  h3{font-size:13px;margin:14px 0 6px;color:var(--brand2)}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;vertical-align:top}
+  th{background:#fafbfc;color:var(--sub);font-weight:600;white-space:nowrap}
+  .chip{display:inline-block;padding:1px 9px;border-radius:999px;background:var(--chip);font-size:12px;white-space:nowrap}
+  .s-GREEN{background:#dcfce7;color:var(--ok)} .s-RED{background:#fee2e2;color:var(--danger)}
+  .s-AMBER{background:#fef3c7;color:var(--warn)} .s-BLUE{background:#dbeafe;color:var(--info)}
+  .s-GREY{background:#eef0f2;color:#475569}
+  .timeline{list-style:none;margin:0;padding:0;border-left:2px solid var(--line)}
+  .timeline li{position:relative;padding:0 0 12px 16px}
+  .timeline li::before{content:"";position:absolute;left:-6px;top:5px;width:9px;height:9px;border-radius:50%;background:var(--brand)}
+  .timeline .t{font-size:12px;color:var(--sub)}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+  .tab{padding:7px 14px;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer;font-weight:600}
+  .tab.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .photos{display:flex;flex-wrap:wrap;gap:10px}
+  .photo{border:1px solid var(--line);border-radius:8px;padding:8px;width:200px;background:#fafbfc}
+  .photo .url{font-size:11px;color:var(--info);word-break:break-all}
+  .banner{padding:10px 14px;border-radius:8px;margin-bottom:12px;font-weight:600}
+  .banner.ok{background:#dcfce7;color:var(--ok)} .banner.bad{background:#fee2e2;color:var(--danger)}
+  .banner.warn{background:#fef3c7;color:var(--warn)}
+  .hidden{display:none}
+  .money{font-variant-numeric:tabular-nums;font-weight:700}
+  .tag-resp{font-weight:700}
+</style>
+</head>
+<body>
+<header>
+  <h1>可审计取洗档案</h1>
+  <p>衣物明细 · 异常证据 · 报价决策 · 客户反馈 · 履约状态 · 支付/退款 · 责任归属 —— 客服 / 门店 / 客户核对同一份事实</p>
+</header>
+
+<div class="wrap">
+  <div class="card">
+    <div class="row">
+      <input id="username" placeholder="用户名（如 cs1 / customer1）" style="width:220px"/>
+      <input id="password" type="password" placeholder="密码" style="width:140px" value="pass123"/>
+      <button onclick="login()">登录</button>
+      <span id="who" class="muted"></span>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <select id="kind">
+        <option value="order">按订单 ID</option>
+        <option value="item">按衣物 ID</option>
+      </select>
+      <input id="oid" placeholder="输入 ID" style="width:160px"/>
+      <button onclick="load()">查询档案</button>
+      <span class="muted">提示：订单档案逐件展示全部衣物。</span>
+    </div>
+  </div>
+
+  <div id="orderHead"></div>
+  <div class="tabs" id="tabs"></div>
+  <div id="garments"></div>
+  <div id="empty" class="card muted">登录后输入订单或衣物 ID 开始查询。</div>
+</div>
+
+<script>
+let token = localStorage.getItem('cc_token') || '';
+let archives = [];
+let activeIdx = 0;
+
+function esc(s){ return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function money(v){ return '¥' + Number(v||0).toFixed(2); }
+function chip(txt, tone){ return `<span class="chip ${tone?'s-'+tone:''}">${esc(txt)}</span>`; }
+// 状态上色
+function toneOf(s){
+  s = String(s||'');
+  if(/PASS|CAPTURED|CONFIRMED|DELIVERED|SETTLED|READY|DONE|RECLAIMED|RETURNED|REFUNDED|RELEASED|PASSED|RESOLVED|REVIEWED|PAID|CLEAR/.test(s)) return 'GREEN';
+  if(/REJECT|FAIL|BLOCK|REFUND|DISPUTE|LOST|EXPIRED|RETURN/.test(s)) return 'RED';
+  if(/PENDING|REVIEW|ANOMALY|QUOTED|PROCESSING|OPEN|DRAFT|HOLD|RECLAIM/.test(s)) return 'AMBER';
+  if(/AUTHORIZED|ASSIGNED|EXTRA|IN_/.test(s)) return 'BLUE';
+  return 'GREY';
+}
+function dt(s){ return s ? esc(String(s).replace('T',' ').slice(0,19)) : '—'; }
+
+async function api(path, opts){
+  const res = await fetch(path, Object.assign({headers:{'X-Auth-Token':token,'Content-Type':'application/json'}}, opts||{}));
+  const txt = await res.text();
+  let data; try{ data = JSON.parse(txt);}catch{ data = {raw:txt}; }
+  if(!res.ok) throw new Error(data.error || ('HTTP '+res.status));
+  return data;
+}
+async function login(){
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value;
+  const res = await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({username,password})});
+  const data = await res.json();
+  if(!res.ok){ alert(data.error||'登录失败'); return; }
+  token = data.token; localStorage.setItem('cc_token', token);
+  document.getElementById('who').textContent = `已登录 ${data.name}（${data.role}）`;
+}
+if(token){
+  fetch('/api/auth/me',{headers:{'X-Auth-Token':token}}).then(r=>r.json()).then(u=>{
+    document.getElementById('who').textContent = `已登录 ${u.name}（${u.role}）`;
+  }).catch(()=>{token='';localStorage.removeItem('cc_token');});
+}
+
+async function load(){
+  const kind = document.getElementById('kind').value;
+  const id = document.getElementById('oid').value.trim();
+  if(!id) return alert('请输入 ID');
+  try{
+    if(kind==='order'){
+      const data = await api('/api/archive/orders/'+id);
+      renderOrder(data);
+    }else{
+      const g = await api('/api/archive/items/'+id);
+      archives = [g]; renderTabs(); renderOrderHead({order:{orderNo:g.orderInfo.orderNo, status:g.currentStatus}}); select(0);
+    }
+  }catch(e){ alert('查询失败：'+e.message); }
+}
+
+function renderOrder(data){
+  archives = data.garments || [];
+  renderOrderHead(data);
+  renderTabs();
+  select(0);
+}
+function renderOrderHead(data){
+  const o = data.order || {};
+  const blocked = data.settlementBlocked;
+  document.getElementById('orderHead').innerHTML = `
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <h2 style="margin:0">订单 ${esc(o.orderNo)} ${chip(o.status, toneOf(o.status))}</h2>
+        <div>${blocked===true?'<span class="banner bad" style="display:inline-block">自动结算已阻断：'+esc(data.settlementBlockReason||'存在缺项')+'</span>':blocked===false?'<span class="banner ok" style="display:inline-block">关单无阻断</span>':''}</div>
+      </div>
+      <div class="grid" style="margin-top:10px">
+        <div class="kv"><b>估价</b><span class="money">${money(o.estimatedAmount)}</span></div>
+        <div class="kv"><b>已确认追加</b><span class="money">${money(o.extraAmount)}</span></div>
+        <div class="kv"><b>实收</b><span class="money">${money(o.totalAmount)}</span></div>
+        <div class="kv"><b>取件地址</b><span>${esc(o.pickupAddress)}</span></div>
+        <div class="kv"><b>送回地址</b><span>${esc(o.deliveryAddress)}</span></div>
+        <div class="kv"><b>预计交付</b><span>${dt(o.expectedDeliveryAt)}</span></div>
+      </div>
+    </div>`;
+}
+function renderTabs(){
+  const el = document.getElementById('tabs');
+  if(archives.length<=1){ el.innerHTML=''; return; }
+  el.innerHTML = archives.map((g,i)=>
+    `<div class="tab ${i===activeIdx?'active':''}" onclick="select(${i})">${esc(g.garment.itemCode)}</div>`).join('');
+}
+function select(i){ activeIdx=i; [...document.querySelectorAll('.tab')].forEach((t,k)=>t.classList.toggle('active',k===i)); renderGarment(archives[i]); }
+
+function renderGarment(a){
+  document.getElementById('empty').classList.add('hidden');
+  const g = a.garment, oi = a.orderInfo;
+  const clear = a.settlementClear;
+  const photos = (a.photos||[]).map(p=>`
+    <div class="photo">
+      <div>${chip(p.stage, toneOf(p.stage))}</div>
+      <div class="url">${esc(p.url)}</div>
+      <div class="muted">${dt(p.takenAt)} · ${esc(p.location||'')}</div>
+    </div>`).join('') || '<span class="muted">无照片</span>';
+
+  const anomalies = (a.anomalies||[]).map(an=>{
+    const iss = an.issue;
+    const ev = (an.evidence||[]).map(e=>`
+      <tr><td>第${e.shotRound}次 · ${esc(e.sourceStage)}</td><td class="url" style="color:var(--info)">${esc(e.photoUrl)}</td>
+      <td>${dt(e.takenAt)}<div class="muted">${esc(e.location||'')}</div></td>
+      <td>${esc(e.suggestion||'')}${e.disagreementNote?'<div class="muted">分歧：'+esc(e.disagreementNote)+'</div>':''}</td></tr>`).join('');
+    const qv = (an.quoteVersions||[]).map(q=>`
+      <tr><td>v${q.versionNo} · ${esc(q.reason)}</td>
+      <td>${chip(q.recommendedOption)}</td><td class="money">${money(q.originalPrice)} + ${money(q.extraAmount)}</td>
+      <td>${esc(q.options).replaceAll(',', ' / ')}</td><td>${chip(q.status, toneOf(q.status))}</td>
+      <td class="muted">${esc(q.ruleNote||'')}</td></tr>`).join('');
+    const ds = (an.decisions||[]).map(d=>`
+      <tr><td>${dt(d.createdAt)}</td><td>${chip(d.action)}</td><td>${chip(d.status, toneOf(d.status))}</td>
+      <td>${esc(d.customerNote||'')}</td><td>${dt(d.expectedDeliveryAt)}</td></tr>`).join('');
+    const rv = (an.manualReviews||[]).map(r=>`
+      <tr><td>${esc(r.reviewNo)}</td><td>${chip(r.outcome, toneOf(r.outcome))}</td>
+      <td>${money(r.adjustedExtra)}</td><td>${esc(r.verdictNote||r.requestReason||'')}</td></tr>`).join('');
+    return `<div class="card" style="border-left:4px solid var(--warn)">
+      <h2><span class="no">异常</span>${esc(iss.issueNo)} ${chip(iss.type)} ${chip(iss.status, toneOf(iss.status))}
+        <span class="muted">发现于 ${iss.foundStage==='PICKUP'?'骑手取件':'门店质检'} · 截止 ${dt(iss.decisionDeadline)}</span></h2>
+      <div class="muted" style="margin-bottom:6px">${esc(iss.description)} ${iss.actualMaterial?('｜实物材质：'+esc(iss.actualMaterial)):''} ｜建议：${esc(iss.suggestion||'')}</div>
+      <h3>原始证据 / 多次补拍（拍摄时间 · 位置 · 建议；骑手与门店分歧独立留痕）</h3>
+      <table><thead><tr><th>补拍轮次/环节</th><th>照片</th><th>拍摄时间/位置</th><th>处理建议/分歧</th></tr></thead><tbody>${ev||'<tr><td colspan=4 class=muted>无证据</td></tr>'}</tbody></table>
+      <h3>报价版本（历史版本保留，原判断不覆盖）</h3>
+      <table><thead><tr><th>版本/触发</th><th>推荐方案</th><th>原价+追加</th><th>候选方案</th><th>状态</th><th>规则说明</th></tr></thead><tbody>${qv||'<tr><td colspan=6 class=muted>无</td></tr>'}</tbody></table>
+      <h3>客户反馈 / 决策</h3>
+      <table><thead><tr><th>时间</th><th>动作</th><th>状态</th><th>备注</th><th>决策时预计交付</th></tr></thead><tbody>${ds||'<tr><td colspan=5 class=muted>客户尚未决策</td></tr>'}</tbody></table>
+      ${rv?`<h3>人工复核</h3><table><thead><tr><th>复核单</th><th>裁决</th><th>调整金额</th><th>说明</th></tr></thead><tbody>${rv}</tbody></table>`:''}
+    </div>`;
+  }).join('') || '<div class="muted">无异常项</div>';
+
+  const pays = (a.payments||[]).map(p=>`
+    <tr><td>${esc(p.paymentNo)}</td><td>${esc(p.bizRef||'')}</td><td>${chip(p.intent)}</td><td>${chip(p.status, toneOf(p.status))}</td>
+    <td class="money">${money(p.amount)}</td><td class="money">${money(p.capturedAmount)}</td><td class="money">${money(p.refundedAmount)}</td>
+    <td class="muted">${esc(p.failReason||'')}</td></tr>`).join('');
+
+  const events = (a.statusEvents||[]).map(e=>`
+    <li><b>${esc(e.toStatus)}</b> <span class="muted">← ${esc(e.fromStatus)}</span>
+      <div>${chip(e.event)} ${esc(e.refType||'')}${e.refId?('#'+e.refId):''} ${e.note?('· '+esc(e.note)):''}</div>
+      <div class="t">${dt(e.createdAt)} · 操作人 ${e.operatorId===0?'系统':e.operatorId}</div></li>`).join('');
+
+  const resp = a.responsibility || {};
+  const cases = (resp.compensations||[]).map(c=>`
+    <tr><td>${esc(c.caseNo)}</td><td class="tag-resp">${chip(c.responsibility,'RED')}</td>
+    <td class="money">${money(c.amount)}</td><td>${chip(c.status, toneOf(c.status))}</td><td>${c.insuranceClaim?'保险赔付':'—'}</td></tr>`).join('');
+
+  document.getElementById('garments').innerHTML = `
+  <div class="banner ${clear?'ok':'bad'}">${clear?'关单校验：证据/确认/质检/包装取回/支付齐全，可自动结算':'关单校验：存在缺项，自动结算已阻断并转人工队列'}</div>
+
+  <div class="card">
+    <h2><span class="no">衣物</span>${esc(g.itemCode)} ${chip(a.currentStatus, toneOf(a.currentStatus))}
+      <span class="muted">${esc(g.type)} · 风险 ${chip(g.riskLevel)}</span></h2>
+    <div class="grid">
+      <div class="kv"><b>品牌（订单）</b><span>${esc(g.orderBrand||'—')}</span></div>
+      <div class="kv"><b>材质（订单）</b><span>${esc(g.orderMaterial)}</span></div>
+      <div class="kv"><b>颜色</b><span>${esc(g.color||'—')}</span></div>
+      <div class="kv"><b>污渍描述</b><span>${esc(g.stains||'—')}</span></div>
+      <div class="kv"><b>已有破损</b><span>${esc(g.existingDamage||'—')}</span></div>
+      <div class="kv"><b>配件</b><span>${esc(g.accessories||'—')}</span></div>
+      <div class="kv"><b>洗标</b><span>${g.careLabelPresent?'有':'缺失'}</span></div>
+      <div class="kv"><b>声明价值</b><span class="money">${money(g.declaredValue)}</span></div>
+      <div class="kv"><b>奢侈品</b><span>${g.luxury?'是':'否'}</span></div>
+      <div class="kv"><b>基础服务费</b><span class="money">${money(g.basePrice)}</span></div>
+      <div class="kv"><b>已确认追加</b><span class="money">${money(g.agreedExtra)}</span></div>
+      <div class="kv"><b>预计交付</b><span>${dt(g.expectedDeliveryAt)}</span></div>
+    </div>
+  </div>
+
+  <div class="card"><h2>照片与原始证据时间线</h2><div class="photos">${photos}</div></div>
+
+  <div class="card"><h2>骑手取件 / 多站点交接</h2>
+    <table><thead><tr><th>时间</th><th>起点站点</th><th>目标站点</th><th>操作人</th><th>备注</th></tr></thead><tbody>
+    ${(a.pickupAndTransfers||[]).map(t=>`<tr><td>${dt(t.createdAt)}</td><td>${t.fromSiteId??'门店/外部'}</td><td>${t.toSiteId}</td><td>${t.operatorId}</td><td>${esc(t.note||'')}</td></tr>`).join('')||'<tr><td colspan=5 class=muted>无交接记录</td></tr>'}
+    </tbody></table>
+  </div>
+
+  <div class="card"><h2>门店质检（入厂质检 + 关单前复检）</h2>
+    <table><thead><tr><th>时间</th><th>阶段</th><th>结论</th><th>材质核对</th><th>配件清点</th><th>包装</th><th>取回/交接</th><th>备注</th></tr></thead><tbody>
+    ${(a.storeQc||[]).map(q=>`<tr><td>${dt(q.createdAt)}</td><td>${q.phase==='INTAKE'?'入厂质检':'关单复检'}</td><td>${chip(q.conclusion,toneOf(q.conclusion))}</td><td>${esc(q.materialCheck||'—')}</td><td>${esc(q.accessoryCheck||'—')}</td><td>${q.packagingConfirmed?'✅':'—'}</td><td>${q.handoverConfirmed?'✅':'—'}</td><td>${esc(q.note||'')}</td></tr>`).join('')||'<tr><td colspan=8 class=muted>暂无质检记录</td></tr>'}
+    </tbody></table>
+  </div>
+
+  ${anomalies}
+
+  <div class="card"><h2>服务项 / 洗护工序${a.highValueReview?' · 高价值专人复核':''}</h2>
+    <table><thead><tr><th>开始</th><th>完成</th><th>站点</th><th>工艺</th><th>备注</th></tr></thead><tbody>
+    ${(a.processes||[]).map(p=>`<tr><td>${dt(p.startedAt)}</td><td>${dt(p.finishedAt)}</td><td>${p.siteId}</td><td>${chip(p.processType)}</td><td>${esc(p.note||'')}</td></tr>`).join('')||'<tr><td colspan=5 class=muted>尚未排产</td></tr>'}
+    </tbody></table>
+    ${a.highValueReview?`<div style="margin-top:8px">高价值复核：${chip(a.highValueReview.status,toneOf(a.highValueReview.status))} <span class=muted>${esc(a.highValueReview.note||'')}</span></div>`:''}
+  </div>
+
+  <div class="card"><h2>履约状态机（完整事件流，可回放）</h2><ul class="timeline">${events||'<li class=muted>无事件</li>'}</ul>
+    ${a.reclaim?`<h3>骑手回收</h3><table><tbody>
+      <tr><th>回收单</th><td>${esc(a.reclaim.reclaimNo)}</td><th>状态</th><td>${chip(a.reclaim.status,toneOf(a.reclaim.status))}</td></tr>
+      <tr><th>回收地址</th><td>${esc(a.reclaim.reclaimAddress)}</td><th>骑手</th><td>${a.reclaim.riderId??'待派'}</td></tr>
+      <tr><th>回收留影</th><td colspan=3 style="color:var(--info)">${esc(a.reclaim.handoverPhotoUrl||'尚未留影')}</td></tr>
+      </tbody></table>`:''}
+  </div>
+
+  <div class="card"><h2>支付 / 退款（逐件支付单，幂等）</h2>
+    <table><thead><tr><th>支付单</th><th>业务</th><th>意图</th><th>状态</th><th>授权/冻结</th><th>已扣</th><th>已退</th><th>失败原因</th></tr></thead><tbody>
+    ${pays||'<tr><td colspan=8 class=muted>暂无支付单</td></tr>'}
+    </tbody></table>
+  </div>
+
+  <div class="card"><h2>责任归属${resp.owner?` <span style="margin-left:8px">${chip('责任方：'+resp.owner,'RED')}</span>`:''}</h2>
+    <table><thead><tr><th>赔付案</th><th>责任方</th><th>金额</th><th>状态</th><th>保险</th></tr></thead><tbody>
+    ${cases||'<tr><td colspan=5 class=muted>暂无赔付案（责任以客服/财务最终判定为准，异常发现环节已留痕）</td></tr>'}
+    </tbody></table>
+    <div class="muted" style="margin-top:6px">${(resp.anomalyFindings||[]).map(esc).join('；')}</div>
+  </div>
+
+  <div class="card"><h2>协同工单 / 售后</h2>
+    <table><thead><tr><th>工单号</th><th>类型</th><th>状态</th><th>描述</th></tr></thead><tbody>
+    ${(a.tickets||[]).map(t=>`<tr><td>${esc(t.ticketNo)}</td><td>${chip(t.type)}</td><td>${chip(t.status,toneOf(t.status))}</td><td>${esc(t.description)}</td></tr>`).join('')||'<tr><td colspan=4 class=muted>无工单</td></tr>'}
+    </tbody></table>
+    ${a.afterSales?`<div style="margin-top:8px">售后：${chip(a.afterSales.status,toneOf(a.afterSales.status))} 截止 ${dt(a.afterSales.deadline)}<div class=muted>${esc(a.afterSales.handoverSummary||'')}</div></div>`:''}
+  </div>`;
+}
+</script>
+</body>
+</html>

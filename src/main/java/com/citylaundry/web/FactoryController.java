@@ -73,8 +73,8 @@ public class FactoryController {
 
     @PostMapping("/items/{itemId}/start")
     public GarmentItem start(@RequestHeader("X-Auth-Token") String token, @PathVariable Long itemId) {
-        auth.requireRole(token, Role.FACTORY);
-        return factoryService.startProcess(itemId);
+        UserAccount u = auth.requireRole(token, Role.FACTORY);
+        return factoryService.startProcess(u, itemId);
     }
 
     /** 完成洗护（必须复拍照片）；高价值衣物自动转入专人复核 */

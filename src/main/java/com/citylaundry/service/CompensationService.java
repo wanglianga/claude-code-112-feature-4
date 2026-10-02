@@ -102,12 +102,21 @@ public class CompensationService {
         return caseRepo.save(c);
     }
 
-    /** 财务赔付执行：APPROVED/INSURANCE_FILED → PAID，金额划入顾客会员卡 */
+    /** 财务赔付执行：APPROVED/INSURANCE_FILED → PAID，金额划入顾客会员卡（幂等：重复执行不重复入账） */
     @Transactional
     public CompensationCase pay(UserAccount finance, Long caseId) {
         CompensationCase c = getCase(caseId);
+        if (c.getStatus() == CompensationStatus.PAID || c.getStatus() == CompensationStatus.REVIEWED) {
+            return c; // 幂等：已赔付直接返回，不重复入账
+        }
         if (c.getStatus() != CompensationStatus.APPROVED && c.getStatus() != CompensationStatus.INSURANCE_FILED) {
             throw ApiException.conflict("赔付案未审批通过，不能执行赔付: " + c.getStatus());
+        }
+        // 双重幂等：同赔付案流水唯一键已存在则直接返回
+        if (txRepo.findByIdempotencyKey("compensation-" + c.getId()).isPresent()) {
+            c.setStatus(CompensationStatus.PAID);
+            c.setPaidAt(c.getPaidAt() == null ? LocalDateTime.now() : c.getPaidAt());
+            return caseRepo.save(c);
         }
         GarmentItem item = itemRepo.findById(c.getItemId()).orElseThrow();
         LaundryOrder order = orderRepo.findById(item.getOrderId()).orElseThrow();
@@ -122,6 +131,7 @@ public class CompensationService {
         tx.setCompensationId(c.getId());
         tx.setAmount(c.getAmount());
         tx.setType("COMPENSATION");
+        tx.setIdempotencyKey("compensation-" + c.getId());
         tx.setNote("赔付案 " + c.getCaseNo() + (c.isInsuranceClaim() ? "（保险赔付 单号:" + c.getInsurancePolicyNo() + "）" : "")
                 + " 针对衣物 " + item.getItemCode());
         txRepo.save(tx);

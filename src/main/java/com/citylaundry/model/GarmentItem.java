@@ -75,6 +75,31 @@ public class GarmentItem {
     /** 当前所在工厂站点 */
     private Long currentSiteId;
 
+    /** 基础工艺价（分配工艺时落价） */
+    @Column(precision = 12, scale = 2)
+    private BigDecimal basePrice = BigDecimal.ZERO;
+
+    /** 客户已确认的追加报价金额（未确认/撤回时清零） */
+    @Column(nullable = false, precision = 12, scale = 2)
+    private BigDecimal agreedExtra = BigDecimal.ZERO;
+
+    /** 客户已确认的追加报价版本 id（撤回后置空，历史版本仍保留） */
+    private Long agreedQuoteVersionId;
+
+    /** 衣物级预计交付时间（异常决策导致延期时按件更新；空则取订单预计时间） */
+    private LocalDateTime expectedDeliveryAt;
+
+    /** 骑手回收任务 id（客户拒绝承接时生成；按原服务继续/撤回时取消） */
+    private Long reclaimId;
+
+    /** 入厂质检结论 */
+    @Column(length = 16)
+    private String qcConclusion = "PENDING";
+
+    /** 进入异常报价分支前的业务状态（REGISTERED/PHOTOGRAPHED/AT_FACTORY/PROCESS_ASSIGNED/IN_PROCESS），决策后据此恢复 */
+    @Column(length = 32)
+    private String resumeStatus;
+
     @Column(nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 }

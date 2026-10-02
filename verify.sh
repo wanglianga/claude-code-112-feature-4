@@ -24,7 +24,7 @@ echo "  tokens ok"
 echo "== 1. 顾客下单（2 件：衬衫 + 高价值奢侈品皮衣） =="
 ORDER=$(curl -s "$BASE/api/orders" -H "X-Auth-Token: $TC" -H 'Content-Type: application/json' -d '{
   "storeId":1,"pickupAddress":"幸福路1号","deliveryAddress":"幸福路1号",
-  "expectedDeliveryAt":"2026-09-30T10:00:00",
+  "expectedDeliveryAt":"2026-10-20T10:00:00",
   "items":[
     {"type":"衬衫","material":"棉","color":"白","stains":"领口污渍","careLabelPresent":true,"declaredValue":200},
     {"type":"皮衣外套","brand":"LV","material":"皮革","color":"黑","accessories":"腰带",
@@ -40,7 +40,7 @@ check "高风险衣物识别" "$ITEMS" "HIGH"
 
 echo "== 2. 高风险接单策略：2号店拒收高风险 =="
 BAD=$(curl -s "$BASE/api/orders" -H "X-Auth-Token: $TC" -H 'Content-Type: application/json' -d '{
-  "storeId":2,"pickupAddress":"x","deliveryAddress":"x","expectedDeliveryAt":"2026-09-30T10:00:00",
+  "storeId":2,"pickupAddress":"x","deliveryAddress":"x","expectedDeliveryAt":"2026-10-20T10:00:00",
   "items":[{"type":"真丝围巾","material":"真丝","careLabelPresent":true,"declaredValue":100}]}')
 check "2号店拒收高风险" "$BAD" "不接收高风险"
 

@@ -21,6 +21,8 @@ public class OrderService {
     private final GarmentItemRepo itemRepo;
     private final StoreRepo storeRepo;
     private final MemberCardRepo cardRepo;
+    private final PaymentService paymentService;
+    private final GarmentStateMachine stateMachine;
 
     @Value("${app.high-value-threshold:2000}")
     private BigDecimal highValueThreshold;
@@ -29,11 +31,14 @@ public class OrderService {
     private BigDecimal highRiskValueThreshold;
 
     public OrderService(LaundryOrderRepo orderRepo, GarmentItemRepo itemRepo,
-                        StoreRepo storeRepo, MemberCardRepo cardRepo) {
+                        StoreRepo storeRepo, MemberCardRepo cardRepo,
+                        PaymentService paymentService, GarmentStateMachine stateMachine) {
         this.orderRepo = orderRepo;
         this.itemRepo = itemRepo;
         this.storeRepo = storeRepo;
         this.cardRepo = cardRepo;
+        this.paymentService = paymentService;
+        this.stateMachine = stateMachine;
     }
 
     /** 顾客下单：记录衣物全量信息，评估风险，应用门店接单策略 */
@@ -88,6 +93,7 @@ public class OrderService {
         order = orderRepo.save(order);
 
         int seq = 1;
+        BigDecimal estimate = BigDecimal.ZERO;
         for (ItemRequest ir : req.items()) {
             GarmentItem item = new GarmentItem();
             item.setOrderId(order.getId());
@@ -104,8 +110,14 @@ public class OrderService {
             item.setLuxury(Boolean.TRUE.equals(ir.luxury()));
             item.setRiskLevel(assessRisk(ir));
             item.setStatus(GarmentStatus.REGISTERED);
+            item.setBasePrice(PricingService.estimatePrice(item));
             itemRepo.save(item);
+            estimate = estimate.add(item.getBasePrice());
         }
+        // 下单估价：基础工艺估价 + 配送费（门店自取免配送费）
+        if (!order.isSelfPickup()) estimate = estimate.add(PricingService.DELIVERY_FEE);
+        order.setEstimatedAmount(estimate);
+        orderRepo.save(order);
         return order;
     }
 
@@ -144,7 +156,10 @@ public class OrderService {
         return count;
     }
 
-    /** 顾客确认收衣照片 → 订单进入工厂流程 */
+    /**
+     * 顾客确认收衣 → 逐件进入 CONFIRMED 并创建基础服务费预授权（冻结不扣款）。
+     * 取件阶段存在未决异常（待报价/人工复核/回收中）的衣物不能确认。
+     */
     @Transactional
     public LaundryOrder confirmPickup(UserAccount customer, Long orderId) {
         LaundryOrder order = getOwnOrder(customer, orderId);
@@ -152,11 +167,23 @@ public class OrderService {
             throw ApiException.conflict("订单当前状态不允许确认（需收衣拍照完成）: " + order.getStatus());
         }
         for (GarmentItem item : itemRepo.findByOrderIdOrderByIdAsc(order.getId())) {
-            if (item.getStatus() != GarmentStatus.PHOTOGRAPHED) {
-                throw ApiException.conflict("衣物 " + item.getItemCode() + " 尚未完成拍照");
+            if (item.getStatus() == GarmentStatus.ANOMALY_QUOTED
+                    || item.getStatus() == GarmentStatus.MANUAL_REVIEW
+                    || item.getStatus() == GarmentStatus.RECLAIM_PENDING) {
+                throw ApiException.conflict("衣物 " + item.getItemCode()
+                        + " 存在未决异常/回收任务，须先完成报价决策: " + item.getStatus());
             }
-            item.setStatus(GarmentStatus.CONFIRMED);
-            itemRepo.save(item);
+            if (item.getStatus() != GarmentStatus.PHOTOGRAPHED
+                    && item.getStatus() != GarmentStatus.EXTRA_APPROVED) {
+                throw ApiException.conflict("衣物 " + item.getItemCode() + " 尚未完成拍照或异常决策: "
+                        + item.getStatus());
+            }
+            stateMachine.transition(item.getId(), GarmentStatus.CONFIRMED, "CUSTOMER_CONFIRM_PICKUP",
+                    "ORDER", order.getId(), customer.getId(), "顾客确认收衣，创建预授权");
+            // 基础服务费预授权（幂等键：每件衣物唯一，重复确认不重复冻结）
+            Payment basePay = paymentService.preAuthorize(item.getId(), item.getBasePrice(),
+                    "BASE:" + item.getId(), "BASE:" + item.getId());
+            if (order.getPreAuthPaymentId() == null) order.setPreAuthPaymentId(basePay.getId());
         }
         order.setStatus(OrderStatus.CONFIRMED);
         return orderRepo.save(order);

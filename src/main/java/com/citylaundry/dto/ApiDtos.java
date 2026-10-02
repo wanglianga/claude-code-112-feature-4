@@ -66,4 +66,50 @@ public final class ApiDtos {
             String title, Long storeId, LocalDateTime heldAt,
             String conclusion, List<Long> caseIds
     ) {}
+
+    // ===== feature 4-b：取洗档案 / 异常报价 / 支付 / 回收 / 关单 =====
+
+    public record CreateIssueRequest(
+            Long itemId,
+            String type,            // MATERIAL_MISMATCH/HIGH_RISK_STAIN/ACCESSORY_MISSING/UNREMOVABLE_FLAW/...
+            String description,
+            String severity,        // LOW/MEDIUM/HIGH
+            String suggestion,      // 处理建议
+            String actualMaterial,  // 材质不符时的实物材质
+            String actualBrand,
+            String photoUrl,        // 首张原始证据照片（建议必附）
+            LocalDateTime takenAt,  // 拍摄时间
+            String location         // 拍摄位置
+    ) {}
+
+    public record AddEvidenceRequest(
+            String photoUrl,
+            LocalDateTime takenAt,
+            String location,
+            String sourceStage,     // PICKUP/STORE_QC/REVIEW
+            String disagreementNote,// 与既有判断不一致的说明（骑手/门店分歧）
+            String suggestion,
+            Boolean reprice         // 补拍后是否重新生成报价版本，默认 true
+    ) {}
+
+    public record DecisionRequest(String action, String note) {}
+
+    public record ReviewVerdictRequest(String outcome, java.math.BigDecimal adjustedExtra, String note) {}
+
+    public record IntakeQcRequest(
+            String conclusion,      // PASS/ANOMALY/BASIC_ONLY/REJECT
+            String materialCheck, String accessoryCheck, String note
+    ) {}
+
+    public record FinalQcRequest(Boolean packagingConfirmed, Boolean handoverConfirmed, String note) {}
+
+    public record ReclaimAssignRequest(Long riderId, String note) {}
+
+    public record ReclaimCompleteRequest(String handoverPhotoUrl, String note) {}
+
+    public record CaptureRequest(String idempotencyKey) {}
+
+    public record PaymentCallbackRequest(String callbackId, Boolean success, String failReason) {}
+
+    public record RefundRequest(String idempotencyKey, java.math.BigDecimal amount) {}
 }

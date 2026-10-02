@@ -34,3 +34,11 @@ app:
   high-value-threshold: 2000
   # 高风险衣物声明价值阈值（元）
   high-risk-value-threshold: 5000
+  # 客户异常报价决策时限（小时），超时转人工队列
+  decision-hours: 24
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs

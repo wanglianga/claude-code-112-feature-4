@@ -26,7 +26,14 @@ public class MemberTransaction {
     private BigDecimal amount;
 
     @Column(nullable = false, length = 24)
-    private String type; // PAYMENT / COMPENSATION / RECHARGE
+    private String type; // PAYMENT / COMPENSATION / RECHARGE / PRE_AUTH_FREEZE / PRE_AUTH_RELEASE / REFUND
+
+    /** 关联支付单（可空） */
+    private Long paymentId;
+
+    /** 幂等键：同一业务键重复请求只入账一次（唯一约束兜底） */
+    @Column(length = 64, unique = true)
+    private String idempotencyKey;
 
     @Column(length = 255)
     private String note;

@@ -25,6 +25,17 @@ public class GarmentPhoto {
     @Column(nullable = false, length = 512)
     private String url;
 
+    /** 拍摄时间（补拍/证据留痕，默认当前时间） */
+    @Column(nullable = false)
+    private LocalDateTime takenAt = LocalDateTime.now();
+
+    /** 拍摄位置（经纬度/地址描述） */
+    @Column(length = 255)
+    private String location;
+
+    /** 关联异常项（普通环节照片为空） */
+    private Long issueId;
+
     @Column(nullable = false)
     private Long uploadedBy;
 

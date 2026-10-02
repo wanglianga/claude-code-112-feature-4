@@ -35,14 +35,18 @@ public class DeliveryController {
         return orderRepo.findByStatusOrderByCreatedAtAsc(OrderStatus.READY_FOR_DELIVERY);
     }
 
-    /** 交付订单：会员卡扣费 + 逐件售后记录生成 */
+    /** 交付订单：逐件预授权扣款+渠道回调 + 逐件售后记录（simulateFailItemId 演示支付回调失败） */
     @PostMapping("/orders/{orderId}/deliver")
     public Map<String, Object> deliver(@RequestHeader("X-Auth-Token") String token,
                                        @PathVariable Long orderId,
-                                       @RequestBody(required = false) Map<String, String> body) {
+                                       @RequestBody(required = false) Map<String, Object> body) {
         UserAccount u = auth.requireRole(token, Role.DELIVERY, Role.STORE_MANAGER);
-        String photoUrl = body == null ? null : body.get("deliveryPhotoUrl");
-        return deliveryService.deliver(u, orderId, photoUrl);
+        String photoUrl = body == null ? null : (String) body.get("deliveryPhotoUrl");
+        Long failItemId = null;
+        if (body != null && body.get("simulateFailItemId") != null) {
+            failItemId = Long.valueOf(String.valueOf(body.get("simulateFailItemId")));
+        }
+        return deliveryService.deliver(u, orderId, photoUrl, failItemId);
     }
 
     /** 账单预览 */

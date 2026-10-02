@@ -21,6 +21,10 @@ public class MemberCard {
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal balance = BigDecimal.ZERO;
 
+    /** 预授权冻结金额（确认收衣时冻结，扣款时转实收或拒绝承接时释放） */
+    @Column(nullable = false, precision = 12, scale = 2)
+    private BigDecimal frozenBalance = BigDecimal.ZERO;
+
     @Column(nullable = false, length = 16)
     private String level = "NORMAL"; // NORMAL / SILVER / GOLD
 }

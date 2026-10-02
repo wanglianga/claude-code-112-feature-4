@@ -16,4 +16,8 @@ public class FactorySite {
 
     @Column(length = 64)
     private String specialty; // 站点专长：通用/皮具/奢侈品
+
+    /** 每日洗护产能（异常拒绝/回收会释放占用的产能） */
+    @Column(nullable = false)
+    private int dailyCapacity = 50;
 }
