@@ -34,7 +34,11 @@ public class GarmentItem {
     private String brand;
 
     @Column(nullable = false, length = 64)
-    private String material; // 材质：棉/羊毛/真丝/皮革/化纤...
+    private String material; // 订单登记材质：棉/羊毛/真丝/皮革/化纤...（报价基准，永不覆盖）
+
+    /** 客户确认材质不符追加后的【实际洗护材质】；仅影响工艺判定，订单登记材质保留 */
+    @Column(length = 64)
+    private String confirmedMaterial;
 
     @Column(length = 64)
     private String color;
@@ -71,6 +75,25 @@ public class GarmentItem {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     private GarmentStatus status = GarmentStatus.REGISTERED;
+
+    /** 进入异常/支付挂起前的衣物状态：客户撤回后回到该状态，原判断不被覆盖 */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 32)
+    private GarmentStatus statusBeforeHold;
+
+    /** 最终成交价（客户确认追加后的价格；为空时按交付账单规则计价） */
+    @Column(precision = 12, scale = 2)
+    private BigDecimal finalPrice;
+
+    /** 当前生效报价轮次 id（历史版本保留在 quote_round 表，不覆盖） */
+    private Long currentQuoteRoundId;
+
+    /** 已排产日期（幂等占用/释放产能的依据，null=未排产） */
+    private java.time.LocalDate productionDate;
+
+    /** 该件已通过支付单请款金额（入厂洗护时幂等请款） */
+    @Column(nullable = false, precision = 12, scale = 2)
+    private BigDecimal capturedAmount = BigDecimal.ZERO;
 
     /** 当前所在工厂站点 */
     private Long currentSiteId;

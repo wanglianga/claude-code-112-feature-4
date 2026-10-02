@@ -21,4 +21,8 @@ public class Store {
     /** 每日高风险衣物接单上限 */
     @Column(nullable = false)
     private int maxHighRiskPerDay = 10;
+
+    /** 门店日洗护产能（件/日）：异常选择影响排产占用与释放 */
+    @Column(nullable = false)
+    private int dailyCapacity = 100;
 }

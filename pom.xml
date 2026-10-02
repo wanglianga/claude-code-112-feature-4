@@ -62,4 +62,18 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- 本地无 Docker 时的内存库自测：mvn spring-boot:run -Ph2 -->
+        <profile>
+            <id>h2</id>
+            <dependencies>
+                <dependency>
+                    <groupId>com.h2database</groupId>
+                    <artifactId>h2</artifactId>
+                    <scope>runtime</scope>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
 </project>

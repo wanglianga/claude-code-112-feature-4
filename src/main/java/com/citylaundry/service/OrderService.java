@@ -82,6 +82,8 @@ public class OrderService {
         order.setMemberCardId(card.getId());
         order.setExpectedDeliveryAt(req.expectedDeliveryAt());
         order.setStatus(OrderStatus.CREATED);
+        order.setExpectedDeliveryAt(req.expectedDeliveryAt());
+        order.setBaseExpectedDeliveryAt(req.expectedDeliveryAt());
         order.setOrderNo("TMP");
         order = orderRepo.save(order);
         order.setOrderNo(String.format("O%08d", order.getId()));
@@ -144,22 +146,23 @@ public class OrderService {
         return count;
     }
 
-    /** 顾客确认收衣照片 → 订单进入工厂流程 */
+    /**
+ * 顾客确认取衣照片无误（新流程下仅记录认可，不直接放行送厂；
+ * 放行须经骑手取件建档 + 门店收件质检/异常客户决策）。
+ */
     @Transactional
     public LaundryOrder confirmPickup(UserAccount customer, Long orderId) {
         LaundryOrder order = getOwnOrder(customer, orderId);
-        if (order.getStatus() != OrderStatus.PICKED_UP) {
-            throw ApiException.conflict("订单当前状态不允许确认（需收衣拍照完成）: " + order.getStatus());
+        if (order.getStatus() != OrderStatus.CREATED) {
+            throw ApiException.conflict("订单已离开拍照确认环节: " + order.getStatus());
         }
         for (GarmentItem item : itemRepo.findByOrderIdOrderByIdAsc(order.getId())) {
             if (item.getStatus() != GarmentStatus.PHOTOGRAPHED) {
                 throw ApiException.conflict("衣物 " + item.getItemCode() + " 尚未完成拍照");
             }
-            item.setStatus(GarmentStatus.CONFIRMED);
-            itemRepo.save(item);
         }
-        order.setStatus(OrderStatus.CONFIRMED);
-        return orderRepo.save(order);
+        // 仅确认照片；等待骑手确认取件
+        return order;
     }
 
     public LaundryOrder getOwnOrder(UserAccount customer, Long orderId) {

@@ -1,129 +1,153 @@
-# 城市干洗店衣物收取洗护与赔付服务
+# 城市干洗 · 取洗档案与异常报价决策系统
 
-## 原始需求
+## 本阶段需求（取洗档案 / 异常证据 / 规则报价 / 衣物级状态机）
 
-开发城市干洗店衣物收取洗护与赔付服务，可采用 Java、Spring Boot 和 PostgreSQL。顾客下单后，服务记录衣物类型、品牌、材质、颜色、污渍、破损、配饰、取送地址、会员卡和预计交付时间。收衣员上门拍摄衣物正反面、污渍、标签和配件，顾客确认后进入洗护工厂。工厂根据材质、洗标、污渍类型和风险等级分配干洗、水洗、皮具护理、奢侈品护理或拒洗流程。若洗标缺失、污渍无法去除、衣物缩水、配饰丢失、客户临时改地址、工厂延期或顾客质疑新破损，服务要让顾客、收衣员、工厂、客服、配送和财务围绕同一衣物单处理。交付时，系统合并洗护记录、复拍照片、会员扣费、赔付和售后时限，方便后续追责。服务还要支持奢侈品护理、团体工服、门店自取、保险赔付和工厂多站点流转。每件衣物都需要有独立编号、照片、工艺、交接和售后记录，不能让同一订单里的多件衣物混在一起赔付。高风险衣物会影响门店接单策略。高价值衣物还会进入专人复核流程，交付前必须完成二次拍照和包装确认。赔付复盘会进入门店质检会议。
+订单进入取件环节后，系统把客户下单信息、衣物照片、材质/品牌、污渍描述、服务项、预估价格、
+骑手取件记录、门店质检与支付状态关联为**同一份可审计取洗档案**。骑手或门店发现
+**材质与订单不符、高风险污渍、配件缺失、无法去除的瑕疵**时，不能直接加价或继续洗护：
+必须创建异常项并附**原始照片、拍摄时间、位置、处理建议**，系统按规则生成
+「维持原价 / 追加报价 / 拒绝承接 / 仅基础处理」4 个候选方案。客户可在时限内
+**确认、拒绝（原路退回 或 按原服务继续）、申请人工复核**；确认追加后才允许排产，
+不同选择同步影响**骑手回收、门店产能、支付预授权、预计交付时间**。
+
+对同一衣物**多次补拍、骑手与门店判断不一致、客户确认后撤回、衣物已进入洗护但支付回调失败**
+等情形，系统以**衣物级状态机**处理，保留每次报价版本与证据，不覆盖原判断；
+退款、补偿、重派、洗护工序均**幂等**，避免重复扣款或重复出库。关单前校验
+**证据、客户确认、质检结论、包装/取回记录**是否齐全，缺项时**阻止自动结算并转入人工队列**。
+最终页面统一展示衣物明细、异常证据、报价决策、客户反馈、履约状态、支付/退款与责任归属，
+方便客服、门店和客户核对同一事实。
 
 ---
 
 ## 技术栈
 
 - Java 17 + Spring Boot 3.3（Web / Data JPA / Actuator）
-- PostgreSQL 16
-- Maven 多阶段构建，最终镜像基于 `eclipse-temurin:17-jre`，**非 root 用户运行 + HEALTHCHECK**
-- 认证：登录发 Token，后续请求携带 `X-Auth-Token`（演示用，无需外部依赖）
+- PostgreSQL 16（生产/交付）；H2（仅本地无 Docker 自测 profile）
+- Maven 多阶段 Docker 构建，运行镜像基于 `eclipse-temurin:17-jre`，**非 root + HEALTHCHECK**
+- 前端：零构建的单页 `src/main/resources/static/dossier.html`（登录后查看/操作取洗档案）
+- 认证：登录发 Token，后续请求携带 `X-Auth-Token`（演示用，无外部依赖）
 
-## 一键启动（宿主 docker compose）
+## 一键启动（Docker Compose，交付推荐）
 
 ```bash
-cp .env.example .env          # 可按需修改 CC_PUBLISH_PORT
-docker compose up -d --build  # 构建并启动 app + PostgreSQL
+cp .env.example .env          # 可改 CC_PUBLISH_PORT（默认宿主 3112）
+docker compose up -d --build  # 启动 app + PostgreSQL
 docker compose ps             # 查看健康状态
 ```
 
-- 只把**应用服务**端口发布到宿主：`${CC_PUBLISH_PORT}:8080`（默认 3112）。
-- **PostgreSQL 不发布宿主端口**，仅在 compose 内部网络通过服务名 `db` 访问。
+- 仅发布应用端口：`${CC_PUBLISH_PORT}:8080`（默认 3112）；PostgreSQL 不发布宿主端口。
 - 健康检查：`GET /actuator/health` 返回 `{"status":"UP"}`。
-- 验证实际映射端口：`docker compose port app 8080`，再通过 `http://host.docker.internal:<端口>` 访问。
-- 停止释放资源：`docker compose down`（数据保留）；彻底清理：`docker compose down -v`。
+- 访问档案页：`http://localhost:3112/dossier.html`（顶部选角色登录，输入订单 ID 查询）。
+- 停止：`docker compose down`（保留数据）；彻底清理：`docker compose down -v`。
 
-> 验证方式 = 宿主 `docker compose up`，无需在本机安装 JDK/Maven/PostgreSQL。
+## 本地开发与自测（无需 Docker / PostgreSQL）
 
-## 演示账号（逐角色：用户名 / 密码 / 权限）
-
-| 角色 | 用户名 | 密码 | 权限说明 |
-|---|---|---|---|
-| 顾客 | `customer1` | `pass123` | 下单（会员卡 MC1001 余额 ¥500 GOLD）、确认收衣、查看订单、改地址发起工单、售后质疑新破损 |
-| 顾客 | `customer2` | `pass123` | 会员卡 MC1002 余额 ¥200 NORMAL |
-| 收衣员 | `picker1` | `pass123` | 看待收衣任务、上传正反面/污渍/洗标/配饰照片 |
-| 工厂 | `factory1` | `pass123` | 入厂、分配工艺、洗护、复拍、拒洗、多站点流转、高价值复核拍照 |
-| 客服 | `cs1` | `pass123` | 受理/办结异常工单、多角色留言、逐件立案赔付 |
-| 配送 | `courier1` | `pass123` | 看待交付订单、执行交付（合并账单+扣费+售后时限） |
-| 财务 | `finance1` | `pass123` | 审批赔付、执行赔付/保险赔付、金额划入会员卡 |
-| 门店经理 | `manager1` | `pass123` | 调整高风险接单策略、完成高价值专人复核、召开质检会议复盘赔付 |
-
-基础数据：2 家门店（1 号「市中心旗舰店」接收高风险/日限 5 件；2 号「高新社区店」**不接收高风险**）、3 个工厂站点（1 号通用站、2 号皮具站、3 号奢侈品站）。
-
-## 核心业务流
-
-```
-顾客下单(记录衣物全量信息+风险评估+门店接单策略)
-  → 收衣员上门拍照(正/反/污渍/洗标/配饰)
-  → 顾客确认
-  → 工厂入厂(交接记录) → 按材质/洗标/污渍/风险分配工艺(干洗/水洗/皮具/奢侈品；洗标缺失自动开异常单)
-  → 洗护 → 复拍照片
-  → [高价值] 专人复核：二次拍照 + 包装确认齐全才能通过
-  → 交付：合并洗护记录/复拍/会员扣费/赔付/售后时限(默认7天)，逐件生成售后记录
-  → [异常] 多角色围绕同一件衣物工单协同 → [赔付] 逐件立案(可走保险) → 质检会议复盘
+```bash
+mvn spring-boot:run -Ph2          # 使用内存 H2，数据重启即清空，默认端口 8080
+# 浏览器打开 http://localhost:8080/dossier.html
 ```
 
-关键规则：
+打包（默认 PostgreSQL 配置）：
 
-- **每件衣物独立编号**（`G<订单号>-<序号>`），照片/工艺/交接/异常/赔付/售后全部按件挂载，赔付严格逐件立案，同订单多件衣物不会混赔。
-- **风险评估**：奢侈品 / 声明价值 ≥ ¥5000 / 特殊材质（真丝、皮革、皮草、羊绒）→ 高风险；高风险受门店「是否接单 + 每日上限」策略约束。
-- **高价值**（奢侈品或声明价值 ≥ ¥2000）洗护完成后自动进入专人复核，缺二次拍照或包装确认无法通过、无法交付。
-- **异常类型**：洗标缺失、污渍无法去除、衣物缩水、配饰丢失、客户临时改地址、工厂延期、顾客质疑新破损（须在售后时限内）。
-- **工艺**：干洗 ¥30 / 水洗 ¥20 / 皮具护理 ¥80 / 奢侈品护理 ¥200；团体工服（≥5 件）9 折；门店自取免配送费，配送费 ¥5。
-- **保险赔付**：立案时填保险单号，财务审批后状态进入 `INSURANCE_FILED`，执行赔付时金额划入会员卡并标注保单号。
-- **多站点流转**：每次流转生成交接记录（起点/终点站点、操作人、时间）。
-- **赔付复盘**：已赔付案件进入门店质检会议，会议与赔付案双向关联。
+```bash
+mvn clean package -DskipTests    # 产出 target/city-laundry-1.0.0.jar
+```
 
-## 主要 API（均为 JSON，除登录外需请求头 `X-Auth-Token`）
+## 演示账号（用户名 / 密码，均为 pass123）
+
+| 角色 | 用户名 | 在本流程中的权限 |
+|---|---|---|
+| 客户 | `customer1` / `customer2` | 下单；对报价**确认/拒绝(退回或继续)/人工复核/确认后撤回**；查看自己的档案 |
+| 骑手 | `picker1` | 确认取件（建档+预授权）、送达门店、多次补拍、完成回收交接 |
+| 门店经理 | `manager1` | 收件质检、建异常、补拍/补充研判、产能查看、高价值复核、关单 |
+| 工厂 | `factory1` | 入厂、分配工艺、洗护复拍、在途异常上报 |
+| 客服 | `cs1` | 受理人工复核（维持/下调/维持原价/仅基础/拒单）、关单、补齐缺项 |
+| 配送 | `courier1` | 交付（请款+售后记录） |
+| 财务 | `finance1` | 支付回调、失败重试、赔付审批/执行 |
+
+基础数据：2 家门店（1 号店接收高风险/日限 5 件；2 号店不接收高风险）、3 个工厂站点。
+
+## 核心业务流与关键规则
+
+```
+下单(全量衣物信息+估价)
+ → 骑手拍照齐 → 骑手确认取件(取洗档案建立：时间/位置/签字 + 按下单估价预授权冻结)
+ → 骑手送达门店 → 门店逐件收件质检
+     ├─ 一致：质检通过放行
+     └─ 材质不符/高风险污渍/配件缺失/不可去除瑕疵
+           → 建异常项(原始照片+拍摄时间+位置+建议，禁止直接加价/洗护)
+           → 规则自动生成4候选报价版本(维持原价/追加报价/拒绝承接/仅基础处理)
+           → 客户时限内：
+               · 确认追加 → 补充预授权差额、占门店产能、允许排产(可在排产前撤回重出版本)
+               · 拒绝→原路退回：释放预授权 + 骑手幂等回收
+               · 拒绝→按原服务/仅基础处理继续
+               · 申请人工复核：客服维持/下调(必出新版报价)/维持原价/仅基础/拒单
+           → 多次补拍 / 骑手门店判断不一致：证据与双方研判均保留，旧报价 SUPERSEDED 不覆盖
+ → 入厂洗护（按确认后实际材质定工艺；请款渠道回调失败可在洗护中安全重试，幂等不重复扣款）
+ → 复拍 + 包装确认 → 交付（按账单请款、释放剩余预授权、逐件售后）
+ → 关单校验(证据/客户确认/质检/包装/取回)：缺项阻断自动结算→转人工队列；齐全→结算关单封存
+```
+
+关键设计：
+
+- **衣物级状态机**（`GarmentStateMachine`）：每件衣物独立流转，异常只挂单件不拖垮整单；
+  非法迁移直接 409 拒绝，杜绝跳步/覆盖。
+- **报价版本不覆盖**：补拍、分歧、撤回、人工复核都生成新版本，历史版本置 `SUPERSEDED` 永久保留。
+- **规则候选**：高风险材质/高风险污渍默认不可「维持原价」；永久瑕疵不可追加报价；
+  材质升级按实际工艺差价计算追加额，规则命中过程写入 `ruleTrace`。
+- **资金幂等**：支付回调 `idempotencyKey` 唯一落库 + 会员卡流水幂等键双保险；
+  预授权=冻结，确认追加补冻结差额，拒绝/关单释放，退款不超过已请款。
+- **履约幂等**：骑手回收按「异常+原因」幂等复用任务；交付/关单/结算重复调用返回原结果。
+- **责任归属**：按异常类别、双方证据与已执行赔付逐件推导，档案与时间线可审计。
+
+## 主要 API（JSON，除登录外需 `X-Auth-Token`）
 
 | 方法 | 路径 | 角色 | 说明 |
 |---|---|---|---|
-| POST | `/api/auth/login` | - | 登录获取 token |
-| GET  | `/api/auth/me` | 全部 | 当前用户信息 |
-| POST | `/api/orders` | 顾客 | 下单 |
-| GET  | `/api/orders/mine` | 顾客 | 我的订单 |
-| GET  | `/api/orders/{id}` | 全部* | 订单详情（逐件衣物+照片+工单+赔付+账单） |
-| POST | `/api/orders/{id}/confirm-pickup` | 顾客 | 确认收衣照片 |
-| POST | `/api/orders/items/{itemId}/claim` | 顾客 | 售后时限内质疑新破损 |
-| GET  | `/api/pickup/tasks` | 收衣员 | 待收衣订单 |
-| POST | `/api/pickup/items/{itemId}/photos` | 收衣员 | 上传收衣照片 |
-| POST | `/api/factory/items/{itemId}/receive/{siteId}` | 工厂 | 衣物入厂 |
-| POST | `/api/factory/items/{itemId}/assign-process` | 工厂 | 分配工艺（空=自动判定） |
-| POST | `/api/factory/items/{itemId}/start` | 工厂 | 开始洗护 |
-| POST | `/api/factory/items/{itemId}/finish` | 工厂 | 完成洗护（必填复拍 URL） |
-| POST | `/api/factory/items/{itemId}/reject` | 工厂 | 拒洗（填原因） |
-| POST | `/api/factory/items/{itemId}/transfer/{toSiteId}` | 工厂 | 多站点流转 |
-| POST | `/api/factory/items/{itemId}/photos` | 工厂/经理 | 二次拍照、包装确认 |
-| POST | `/api/tickets` | 全部 | 对单件衣物发起异常 |
-| POST | `/api/tickets/{id}/accept` `/resolve` `/comments` | 客服/全部 | 受理、办结（改地址/延期生效）、留言 |
-| POST | `/api/compensations` | 客服 | 基于工单对单件衣物立案（可保险） |
-| POST | `/api/compensations/{id}/approve` | 财务 | 审批 |
-| POST | `/api/compensations/{id}/pay` | 财务 | 执行赔付入会员卡 |
-| GET  | `/api/reviews/pending` | 经理/工厂 | 待高价值复核 |
-| POST | `/api/reviews/items/{itemId}/complete` | 经理/工厂 | 复核（校验两照齐全） |
-| GET  | `/api/delivery/tasks` | 配送/经理 | 待交付订单 |
-| POST | `/api/delivery/orders/{id}/deliver` | 配送/经理 | 交付：扣费+逐件售后记录 |
-| GET  | `/api/delivery/orders/{id}/bill` | 全部 | 账单预览 |
-| GET  | `/api/garments/{itemCode}/trace` | 全部 | 单件衣物全链路追溯 |
-| PUT  | `/api/stores/{id}/strategy` | 经理 | 高风险接单策略 |
-| POST | `/api/stores/qc/meetings` | 经理 | 质检会议（赔付复盘） |
-| GET  | `/api/member/card` / POST `/api/member/recharge` | 顾客 | 会员卡/充值 |
+| POST | `/api/orders` | 客户 | 下单 |
+| POST | `/api/pickup/items/{id}/photos` | 骑手 | 取衣照片（正/反/污渍/洗标/配饰） |
+| POST | `/api/pickup-flow/orders/{id}/confirm` | 骑手 | 确认取件：建档+预授权 |
+| POST | `/api/pickup-flow/orders/{id}/arrive-store` | 骑手 | 送达门店质检 |
+| POST | `/api/pickup-flow/items/{id}/qc-pass` | 门店/工厂 | 质检通过 |
+| POST | `/api/exceptions` | 骑手/门店/工厂 | 建异常（附照片/时间/位置），自动规则报价 |
+| POST | `/api/exceptions/{id}/evidence` | 全部 | 多次补拍（触发新版本，旧版保留） |
+| POST | `/api/exceptions/{id}/assessments` | 全部 | 追加研判（骑手/门店分歧各自保留） |
+| POST | `/api/exceptions/{id}/quote` | 门店/客服 | （重新）生成报价版本 |
+| GET  | `/api/exceptions/{id}` | 全部 | 异常聚合：证据/研判/报价版本+候选 |
+| POST | `/api/decisions/exceptions/{id}/confirm` | 客户 | 确认追加（补授权+占产能+可排产） |
+| POST | `/api/decisions/exceptions/{id}/reject` | 客户 | `mode=REFUND` 退回 / `CONTINUE` 继续 |
+| POST | `/api/decisions/exceptions/{id}/manual-review` | 客户 | 申请人工复核 |
+| POST | `/api/decisions/exceptions/{id}/withdraw` | 客户 | 确认后排产前撤回 |
+| GET/POST | `/api/manual-reviews/...` | 客服 | 人工队列与复核结论 |
+| POST | `/api/factory/items/{id}/receive|assign-process|start|finish` | 工厂 | 入厂/工艺/洗护/复拍 |
+| POST | `/api/ops/orders/{id}/items/{iid}/capture-callback` | 财务/客服 | 按件请款回调（可先失败后同键重试） |
+| GET/POST | `/api/payments/...` | 财务/客服 | 支付单、回调事件、失败重试 |
+| GET/POST | `/api/recovery/tasks/...` | 骑手 | 回收任务（幂等重派）、完成留影 |
+| GET  | `/api/capacity/stores/{id}` | 门店/客服 | 未来 N 天产能占用 |
+| POST | `/api/delivery/orders/{id}/deliver` | 配送 | 交付请款+售后 |
+| POST | `/api/ops/orders/{id}/closeout` | 客服/财务 | 关单校验+自动结算（缺项转人工） |
+| GET/POST | `/api/ops/closeout-blocks/...` | 客服 | 缺项队列与补齐（齐后自动结算） |
+| GET  | `/api/dossiers/orders/{id}` | 全部* | **取洗档案聚合**（客户仅限本单） |
+| 页面 | `/dossier.html` | 全部 | 取洗档案最终页面（查看+操作） |
 
-\* 顾客只能查看自己的订单。
+\* 客户只能查看自己订单的档案。
 
-### curl 快速验证（假设映射端口 3112）
+## 验证方式（实际执行）
+
+端到端脚本覆盖：取件建档+预授权、材质不符规则 4 候选、多次补拍版本保留、
+骑手/门店分歧、客户确认→撤回→再确认、入厂后请款回调失败→同键重试不重复扣款、
+拒绝退回的幂等回收、仅基础处理、缺包装阻断关单→人工补齐自动结算、
+重复退款回调幂等、跨客户档案越权拒绝、档案页可访问。
 
 ```bash
-BASE=http://host.docker.internal:3112
-TOKEN=$(curl -s $BASE/api/auth/login -H 'Content-Type: application/json' \
-  -d '{"username":"customer1","password":"pass123"}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["token"])')
-
-# 顾客下单：普通衬衫 + 高价值奢侈品皮衣（触发高风险接单策略 + 高价值复核）
-curl -s $BASE/api/orders -H "X-Auth-Token: $TOKEN" -H 'Content-Type: application/json' -d '{
-  "storeId": 1,
-  "pickupAddress": "幸福路1号",
-  "deliveryAddress": "幸福路1号",
-  "expectedDeliveryAt": "2026-09-30T10:00:00",
-  "items": [
-    {"type":"衬衫","material":"棉","color":"白","stains":"领口污渍","careLabelPresent":true,"declaredValue":200},
-    {"type":"皮衣外套","brand":"LV","material":"皮革","color":"黑","accessories":"腰带",
-     "careLabelPresent":true,"declaredValue":30000,"luxury":true}
-  ]
-}'
+# 终端 1：启动（H2 本地）
+mvn spring-boot:run -Ph2
+# 终端 2：
+BASE=http://localhost:8080 ./verify.sh
+# Docker 交付环境：BASE=http://host.docker.internal:3112 ./verify.sh
 ```
 
-完整端到端脚本见仓库 `verify.sh`（下单→拍照→确认→入厂→分配工艺→洗护复拍→多站点流转→高价值复核→交付扣费→异常工单→逐件赔付/保险赔付→质检会议复盘）。
+本地实测结果：**PASS=52 FAIL=0**（取件建档/预授权、规则候选可选性、补拍与分歧版本、
+确认撤回、回调失败重试与资金幂等、仅基础处理、关单阻断与人工补齐、越权访问、档案页等）。
+另手工验证：`mvn clean package -DskipTests` 默认 PostgreSQL 配置打包成功；
+重复关单返回 `idempotent=true`；旧工单/赔付链路重复执行赔付返回 409 不重复入账。

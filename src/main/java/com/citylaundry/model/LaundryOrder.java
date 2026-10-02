@@ -44,6 +44,9 @@ public class LaundryOrder {
     @Column(nullable = false)
     private LocalDateTime expectedDeliveryAt;
 
+    /** 下单时预计交付时间快照（客户不同选择导致 ETA 偏移时用于回算） */
+    private LocalDateTime baseExpectedDeliveryAt;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     private OrderStatus status = OrderStatus.CREATED;

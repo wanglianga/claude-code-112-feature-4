@@ -66,4 +66,51 @@ public final class ApiDtos {
             String title, Long storeId, LocalDateTime heldAt,
             String conclusion, List<Long> caseIds
     ) {}
+
+    // ========== 取洗档案 / 异常报价决策 ==========
+
+    public record RiderPickupRequest(String location, String customerSign, String note) {}
+
+    public record QcPassRequest(String observedMaterial, String observedAccessories, String conclusion) {}
+
+    public record CreateExceptionRequest(
+            Long itemId,
+            String category,          // MATERIAL_MISMATCH/HIGH_RISK_STAIN/ACCESSORY_MISSING/PERMANENT_FLAW/OTHER
+            String description,
+            String observedMaterial,
+            String suggestedAction,
+            String severity,          // LOW/MEDIUM/HIGH
+            String photoUrl,
+            LocalDateTime capturedAt,
+            String location,
+            String riskLevel,         // LOW/MEDIUM/HIGH
+            Boolean washable,
+            BigDecimal suggestedSurcharge
+    ) {}
+
+    public record EvidenceRequest(
+            String photoUrl, LocalDateTime capturedAt, String location, String note, String stage
+    ) {}
+
+    public record AssessmentRequest(
+            String judgedMaterial, String riskLevel, Boolean washable,
+            String recommendation, BigDecimal suggestedSurcharge
+    ) {}
+
+    public record IssueQuoteRequest(String reason, BigDecimal surcharge) {}
+
+    public record DecisionRequest(Long roundId, String note) {}
+
+    public record ManualReviewRequest(Long roundId, String note) {}
+
+    public record RejectDecisionRequest(Long roundId, String mode, String continueOption, String note) {}
+
+    public record ManualReviewHandleRequest(String result, BigDecimal adjustedSurcharge, String conclusion) {}
+
+    public record PaymentCallbackRequest(
+            String idempotencyKey, String type, BigDecimal amount,
+            Boolean success, String error
+    ) {}
+
+    public record RecoveryCompleteRequest(String handoverPhotoUrl) {}
 }

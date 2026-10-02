@@ -8,4 +8,6 @@ import java.util.List;
 public interface MemberTransactionRepo extends JpaRepository<MemberTransaction, Long> {
     List<MemberTransaction> findByCardIdOrderByCreatedAtDesc(Long cardId);
     List<MemberTransaction> findByOrderId(Long orderId);
+    boolean existsByIdempotencyKey(String idempotencyKey);
+    java.util.Optional<MemberTransaction> findFirstByIdempotencyKey(String idempotencyKey);
 }

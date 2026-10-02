@@ -1,0 +1,15 @@
+# 本地自测 profile（无需 Docker/PostgreSQL）：
+#   mvn spring-boot:run -Ph2
+# 数据在内存 H2，重启即清空，仅用于本地验证；正式交付仍走 docker compose + PostgreSQL。
+spring:
+  datasource:
+    url: jdbc:h2:mem:laundry;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect

@@ -39,12 +39,14 @@ public class FactoryService {
         this.ticketService = ticketService;
     }
 
-    /** 衣物入厂：登记到达站点，生成交接记录 */
+    /** 衣物入厂：登记到达站点，生成交接记录。仅质检/客户决策已放行的衣物可入厂 */
     @Transactional
     public GarmentItem receiveAtSite(UserAccount factoryUser, Long itemId, Long siteId) {
         GarmentItem item = getItem(itemId);
-        if (item.getStatus() != GarmentStatus.CONFIRMED) {
-            throw ApiException.conflict("衣物状态不是「顾客已确认」，无法入厂: " + item.getStatus());
+        if (item.getStatus() != GarmentStatus.CONFIRMED
+                && item.getStatus() != GarmentStatus.QUOTE_CONFIRMED
+                && item.getStatus() != GarmentStatus.BASIC_ONLY) {
+            throw ApiException.conflict("衣物未完成质检/客户确认，不能入厂: " + item.getStatus());
         }
         FactorySite site = siteRepo.findById(siteId).orElseThrow(() -> ApiException.notFound("工厂站点不存在"));
         item.setStatus(GarmentStatus.AT_FACTORY);
@@ -60,7 +62,9 @@ public class FactoryService {
         transferRepo.save(tr);
 
         LaundryOrder order = orderRepo.findById(item.getOrderId()).orElseThrow();
-        if (order.getStatus() == OrderStatus.CONFIRMED) {
+        if (order.getStatus() == OrderStatus.CONFIRMED
+                || order.getStatus() == OrderStatus.STORE_QC
+                || order.getStatus() == OrderStatus.EXCEPTION_PENDING) {
             order.setStatus(OrderStatus.IN_FACTORY);
             orderRepo.save(order);
         }
@@ -77,7 +81,8 @@ public class FactoryService {
         if (item.getStatus() != GarmentStatus.AT_FACTORY) {
             throw ApiException.conflict("衣物未入厂，无法分配工艺: " + item.getStatus());
         }
-        ProcessType type = manual != null ? manual : autoJudge(item);
+        ProcessType type = manual != null ? manual
+                : (item.getProcessType() == ProcessType.BASIC ? ProcessType.BASIC : autoJudge(item));
         if (type == ProcessType.REJECTED) {
             throw ApiException.badRequest("拒洗请使用拒洗接口并填写原因");
         }
@@ -98,10 +103,12 @@ public class FactoryService {
         return processRepo.save(record);
     }
 
-    /** 自动工艺判定 */
+    /** 自动工艺判定：客户确认材质不符后以 confirmedMaterial 为准 */
     private ProcessType autoJudge(GarmentItem item) {
         if (item.isLuxury()) return ProcessType.LUXURY_CARE;
-        String material = item.getMaterial() == null ? "" : item.getMaterial();
+        String material = item.getConfirmedMaterial() != null && !item.getConfirmedMaterial().isBlank()
+                ? item.getConfirmedMaterial()
+                : (item.getMaterial() == null ? "" : item.getMaterial());
         if (OrderService.containsAny(material, "皮革", "皮草", "PU")) return ProcessType.LEATHER_CARE;
         if (OrderService.containsAny(material, "真丝", "羊绒", "羊毛")) return ProcessType.DRY_CLEAN;
         if (item.getStains() != null && !item.getStains().isBlank()) return ProcessType.DRY_CLEAN;
@@ -223,11 +230,15 @@ public class FactoryService {
 
     private void maybeOrderReady(Long orderId) {
         List<GarmentItem> items = itemRepo.findByOrderIdOrderByIdAsc(orderId);
-        boolean allReady = items.stream().allMatch(i ->
-                i.getStatus() == GarmentStatus.READY_FOR_DELIVERY || i.getStatus() == GarmentStatus.REJECTED);
-        if (allReady && !items.isEmpty()) {
+        boolean allTerminal = items.stream().allMatch(i ->
+                i.getStatus() == GarmentStatus.READY_FOR_DELIVERY
+                        || i.getStatus() == GarmentStatus.REJECTED
+                        || i.getStatus() == GarmentStatus.RETURNED
+                        || i.getStatus() == GarmentStatus.RECOVERED);
+        if (allTerminal && !items.isEmpty()) {
             LaundryOrder order = orderRepo.findById(orderId).orElseThrow();
-            if (order.getStatus() == OrderStatus.IN_FACTORY) {
+            if (order.getStatus() == OrderStatus.IN_FACTORY
+                    || order.getStatus() == OrderStatus.EXCEPTION_PENDING) {
                 order.setStatus(OrderStatus.READY_FOR_DELIVERY);
                 orderRepo.save(order);
             }

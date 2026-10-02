@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>取洗档案 · 城市干洗</title>
+<style>
+  :root{
+    --bg:#f4f6f8; --panel:#fff; --ink:#1f2933; --muted:#64707d; --line:#e3e8ee;
+    --brand:#1f6feb; --brand-weak:#eaf2fe;
+    --ok:#1a7f4b; --ok-weak:#e6f6ee;
+    --warn:#b26a00; --warn-weak:#fdf3e2;
+    --bad:#c0392b; --bad-weak:#fdecea;
+    --violet:#6b46c1; --violet-weak:#f1ecfb;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;font-size:14px;line-height:1.55}
+  header{background:#10243e;color:#fff;padding:14px 22px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  header h1{font-size:17px;margin:0;font-weight:600}
+  header .sub{color:#aebfd2;font-size:12px}
+  .wrap{max-width:1180px;margin:18px auto;padding:0 16px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;margin-bottom:16px;overflow:hidden}
+  .panel > h2{font-size:14px;margin:0;padding:12px 16px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:8px;background:#fafbfc}
+  .panel .body{padding:14px 16px}
+  .loginbar{display:flex;gap:8px;align-items:center;margin-left:auto;flex-wrap:wrap}
+  .loginbar input,.loginbar select{padding:6px 9px;border-radius:6px;border:1px solid #33506f;background:#0d1f35;color:#fff}
+  .loginbar input::placeholder{color:#7e93aa}
+  button{cursor:pointer;border:1px solid var(--brand);background:var(--brand);color:#fff;border-radius:6px;padding:6px 13px;font-size:13px}
+  button.ghost{background:#fff;color:var(--brand)}
+  button.small{padding:3px 9px;font-size:12px}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .muted{color:var(--muted)}
+  .grid{display:grid;gap:12px}
+  .g2{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+  .g3{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+  .kv{background:#fafbfc;border:1px solid var(--line);border-radius:8px;padding:9px 11px}
+  .kv .k{font-size:12px;color:var(--muted)}
+  .kv .v{font-weight:600;margin-top:2px;word-break:break-all}
+  .tag{display:inline-block;padding:1px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+  .t-gray{background:#eef1f4;color:#52606d}
+  .t-blue{background:var(--brand-weak);color:var(--brand)}
+  .t-green{background:var(--ok-weak);color:var(--ok)}
+  .t-orange{background:var(--warn-weak);color:var(--warn)}
+  .t-red{background:var(--bad-weak);color:var(--bad)}
+  .t-violet{background:var(--violet-weak);color:var(--violet)}
+  .item-card{border:1px solid var(--line);border-radius:10px;margin-bottom:14px}
+  .item-head{padding:11px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#fafbfc;border-bottom:1px solid var(--line);border-radius:10px 10px 0 0}
+  .item-head code{background:#eef1f4;padding:2px 7px;border-radius:6px;font-size:12px}
+  .item-body{padding:13px 14px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;vertical-align:top}
+  th{color:var(--muted);font-weight:600;background:#fafbfc}
+  .photos{display:flex;gap:8px;flex-wrap:wrap}
+  .photo{background:#f0f3f6;border:1px dashed #c4ced8;border-radius:8px;padding:8px 10px;font-size:12px;color:#52606d;max-width:210px;word-break:break-all}
+  .photo b{color:var(--ink)}
+  .ex-box{border:1px solid var(--line);border-radius:8px;margin:10px 0}
+  .ex-head{padding:9px 12px;background:#fdf8f0;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-radius:8px 8px 0 0}
+  .ex-body{padding:10px 12px}
+  .quote{border:1px solid var(--line);border-radius:8px;margin:8px 0}
+  .quote-head{padding:8px 12px;background:#f7f9fc;border-bottom:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .opt{display:flex;justify-content:space-between;gap:10px;padding:7px 12px;border-bottom:1px solid var(--line)}
+  .opt:last-child{border-bottom:none}
+  .opt.disabled{opacity:.55;background:#fafbfc}
+  .opt .price{font-weight:700;white-space:nowrap}
+  .timeline{position:relative;margin-left:6px;padding-left:18px;border-left:2px solid var(--line)}
+  .tl{position:relative;padding:0 0 13px 6px}
+  .tl:before{content:"";position:absolute;left:-24px;top:4px;width:9px;height:9px;border-radius:50%;background:var(--brand)}
+  .tl .when{font-size:12px;color:var(--muted)}
+  .tl .type{font-weight:700;margin-right:6px}
+  .actions button{margin:4px 6px 0 0}
+  textarea,input[type=text],input[type=number]{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:6px;font-size:13px;font-family:inherit}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .hint{font-size:12px;color:var(--muted)}
+  .section-actions{margin-bottom:10px}
+  .section-actions button{margin-right:8px}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>🫧 取洗档案（可审计）</h1>
+    <div class="sub">下单信息 · 衣物照片 · 异常证据 · 报价版本 · 客户反馈 · 履约 · 支付退款 · 责任归属</div>
+  </div>
+  <div class="loginbar">
+    <span id="who" class="sub">未登录</span>
+    <select id="user">
+      <option value="customer1">客户 customer1</option>
+      <option value="customer2">客户 customer2</option>
+      <option value="picker1">骑手 picker1</option>
+      <option value="factory1">工厂 factory1</option>
+      <option value="cs1">客服 cs1</option>
+      <option value="courier1">配送 courier1</option>
+      <option value="finance1">财务 finance1</option>
+      <option value="manager1">门店经理 manager1</option>
+    </select>
+    <input id="pwd" type="text" value="pass123" size="7" title="密码"/>
+    <button onclick="login()">登录</button>
+    <input id="orderId" type="text" placeholder="订单ID" size="5"/>
+    <button class="ghost" onclick="load()">查询档案</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="panel">
+    <h2>📋 订单总览 <span id="orderTag" style="margin-left:auto"></span></h2>
+    <div class="body">
+      <div id="orderMeta" class="grid g3"></div>
+      <div style="margin-top:10px" class="row">
+        <button class="small ghost" onclick="load()">刷新</button>
+        <span class="hint">同一页面供客户、客服、门店核对同一事实；报价/异常/支付全部带版本与时间线。</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>🛠 业务操作（按当前登录角色）</h2>
+    <div class="body" id="actions"><span class="hint">查询档案后在此操作；每次操作都会写入审计时间线。</span></div>
+  </div>
+
+  <div id="items"></div>
+
+  <div class="panel">
+    <h2>💳 支付 / 预授权 / 退款</h2>
+    <div class="body" id="payment"></div>
+  </div>
+
+  <div class="panel">
+    <h2>🧾 结算与关单校验</h2>
+    <div class="body" id="closeout"></div>
+  </div>
+
+  <div class="panel">
+    <h2>🕒 审计时间线（append-only）</h2>
+    <div class="body"><div class="timeline" id="timeline"></div></div>
+  </div>
+</div>
+
+<script>
+let TOKEN = null, ME = null, DATA = null, OID = null;
+
+async function api(path, opts){
+  opts = opts || {};
+  opts.headers = Object.assign({"Content-Type":"application/json"}, opts.headers||{});
+  if(TOKEN) opts.headers["X-Auth-Token"] = TOKEN;
+  const res = await fetch(path, opts);
+  const text = await res.text();
+  let body; try{ body = JSON.parse(text); }catch(e){ body = text; }
+  if(!res.ok){
+    const msg = (body && body.error) ? body.error : ("HTTP "+res.status);
+    alert("❌ "+msg); throw new Error(msg);
+  }
+  return body;
+}
+
+async function login(){
+  const username = document.getElementById("user").value;
+  const password = document.getElementById("pwd").value;
+  const r = await api("/api/auth/login",{method:"POST",body:JSON.stringify({username,password})});
+  TOKEN = r.token; ME = r;
+  document.getElementById("who").textContent = r.name+" · "+roleName(r.role);
+  if(OID) load();
+}
+function roleName(r){return {CUSTOMER:"客户",PICKUP:"骑手",FACTORY:"工厂",CS:"客服",DELIVERY:"配送",FINANCE:"财务",STORE_MANAGER:"门店经理"}[r]||r;}
+
+function tag(s){
+  if(s==null) return '<span class="tag t-gray">-</span>';
+  const v = String(s);
+  let cls = "t-gray";
+  if(/CONFIRM|CONFIRMED|PASSED|SETTLED|CAPTURED|READY|DELIVERED|PASS|DONE|UPHOLD|RESOLVED/.test(v)) cls="t-green";
+  else if(/PENDING|AWAIT|RETRYING|DRAFT|OPEN|PROCESSING|HOLD|TIMEOUT|DISPUTED|CREATED|PREAUTHED/.test(v)) cls="t-orange";
+  else if(/REJECT|FAIL|REFUND|RETURN|MISSING|BLOCK|CANCEL|WITHDRAW|CLOSED/.test(v)) cls="t-red";
+  else if(/REVIEW|MANUAL|SUPERSEDED|BASIC|EXCEPTION|QC/.test(v)) cls="t-violet";
+  else if(/SURCHARGE|QUOTED|ISSUED|ASSESSED/.test(v)) cls="t-blue";
+  return '<span class="tag '+cls+'">'+v+'</span>';
+}
+function kv(k,v){return '<div class="kv"><div class="k">'+k+'</div><div class="v">'+(v==null||v===""?'<span class="muted">-</span>':v)+'</div></div>';}
+function esc(s){return s==null?"":String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function dt(s){return s?String(s).replace("T"," ").substring(0,16):"-";}
+function money(v){return v==null?"-":"¥"+Number(v).toFixed(2);}
+
+async function load(){
+  if(!TOKEN){ alert("请先登录"); return; }
+  OID = document.getElementById("orderId").value.trim();
+  if(!OID){ alert("请输入订单ID"); return; }
+  DATA = await api("/api/dossiers/orders/"+OID);
+  render();
+}
+
+function render(){
+  const o = DATA.order;
+  document.getElementById("orderTag").innerHTML = tag(o.status);
+  document.getElementById("orderMeta").innerHTML = [
+    kv("订单号",esc(o.orderNo)), kv("订单类型",o.type), kv("取送方式",o.selfPickup?"门店自取":"配送上门"),
+    kv("门店ID",o.storeId), kv("下单时间",dt(o.createdAt)), kv("预计交付",dt(o.expectedDeliveryAt)),
+    kv("取件地址",esc(o.pickupAddress)), kv("交付地址",esc(o.deliveryAddress)),
+    kv("责任归属",tag(DATA.responsibility))
+  ].join("");
+
+  // 取件记录
+  let pickup = DATA.pickupRecords.map(p=>kv("骑手取件", esc("骑手#"+p.riderId)+" "+dt(p.pickedAt)
+     +"<br><span class='muted'>"+esc(p.location)+"</span>"
+     +(p.deliveredToStoreAt?"<br>到店 "+dt(p.deliveredToStoreAt):""))).join("");
+  if(pickup){
+    const box=document.createElement("div");
+  }
+
+  document.getElementById("items").innerHTML = DATA.items.map(renderItem).join("");
+  renderPayment();
+  renderCloseout();
+  renderTimeline();
+  renderActions();
+}
+
+function photosBlock(photos){
+  if(!photos || !photos.length) return '<div class="muted">无照片</div>';
+  return '<div class="photos">'+photos.map(p=>
+    '<div class="photo"><b>'+esc(p.stage)+'</b><br>'+esc(p.url)+'<br><span class="muted">'+dt(p.createdAt)+'</span></div>'
+  ).join("")+'</div>';
+}
+
+function renderItem(card){
+  const it = card.item;
+  let html = '<div class="item-card"><div class="item-head">'
+    + '<code>'+esc(it.itemCode)+'</code>'
+    + '<b>'+esc(it.type)+'</b>'+tag(it.status)
+    + '<span class="muted">'+esc(it.brand||"")+' · '+esc(it.material)+' · '+esc(it.color||"")+'</span>'
+    + '<span style="margin-left:auto">估价 '+money(card.estimatePrice)
+    + (it.finalPrice!=null?' / 成交 <b>'+money(it.finalPrice)+'</b>':'')+'</span>'
+    + '</div><div class="item-body">';
+
+  html += '<div class="grid g3">'+[
+    kv("材质（订单）",esc(it.material)), kv("品牌",esc(it.brand)), kv("风险等级",tag(it.riskLevel)),
+    kv("污渍描述",esc(it.stains)), kv("已有破损",esc(it.existingDamage)), kv("配饰",esc(it.accessories)),
+    kv("声明价值",money(it.declaredValue)), kv("奢侈品",it.luxury?"是":"否"), kv("洗护工艺",it.processType?tag(it.processType):"-"),
+    kv("已请款",money(it.capturedAmount)), kv("排产日期",it.productionDate||"-"), kv("门店质检", card.qc?tag(card.qc.passed?"PASS":"异常"):"未质检")
+  ].join("")+'</div>';
+
+  html += '<h4 style="margin:14px 0 6px">衣物照片（按阶段留存）</h4>'+photosBlock(card.photos);
+
+  if(card.qc){
+    html += '<h4 style="margin:14px 0 6px">门店收件质检</h4><div class="grid g2">'
+      + kv("实际识别材质",esc(card.qc.observedMaterial))
+      + kv("实收配件",esc(card.qc.observedAccessories))
+      + kv("质检结论",esc(card.qc.conclusion))
+      + kv("初判责任",tag(card.qc.responsibility)) + '</div>';
+  }
+
+  // 异常
+  if(card.exceptions.length){
+    html += '<h4 style="margin:14px 0 6px">⚠️ 异常证据与报价决策</h4>';
+    html += card.exceptions.map(renderException).join("");
+  }
+
+  // 回收任务
+  if(card.recoveryTasks && card.recoveryTasks.length){
+    html += '<h4 style="margin:14px 0 6px">骑手回收</h4><table><tr><th>单号</th><th>原因</th><th>状态</th><th>退回地址</th><th>留影</th></tr>'
+      + card.recoveryTasks.map(t=>'<tr><td>'+esc(t.taskNo)+'</td><td>'+esc(t.reason)+'</td><td>'+tag(t.status)
+        +'</td><td>'+esc(t.returnAddress)+'</td><td>'+(t.handoverPhotoUrl?esc(t.handoverPhotoUrl):"-")+'</td></tr>').join("")
+      + '</table>';
+  }
+
+  // 赔付
+  if(card.compensations && card.compensations.length){
+    html += '<h4 style="margin:14px 0 6px">赔付</h4><table><tr><th>案号</th><th>金额</th><th>状态</th><th>责任</th></tr>'
+      + card.compensations.map(c=>'<tr><td>'+esc(c.caseNo)+'</td><td>'+money(c.amount)+'</td><td>'+tag(c.status)
+        +'</td><td>'+esc(c.responsibility)+'</td></tr>').join("")+'</table>';
+  }
+  if(card.afterSales){
+    html += '<div style="margin-top:10px"><span class="muted">售后截止 '+dt(card.afterSales.deadline)+' </span>'+tag(card.afterSales.status)+'</div>';
+  }
+  html += '</div></div>';
+  return html;
+}
+
+function renderEvidence(ex){
+  if(!ex.evidence.length) return '<div class="muted">无证据</div>';
+  return '<table><tr><th>轮次</th><th>来源</th><th>照片</th><th>拍摄时间</th><th>位置</th><th>说明</th></tr>'
+    + ex.evidence.map(e=>'<tr><td>第'+e.roundNo+'轮</td><td>'+tag(e.source)+'</td><td>'+esc(e.photoUrl)
+      +'</td><td>'+dt(e.capturedAt)+'</td><td>'+esc(e.location)+'</td><td>'+esc(e.note)+'</td></tr>').join("")
+    + '</table>';
+}
+function renderAssessments(ex){
+  if(!ex.assessments.length) return "";
+  return '<table style="margin-top:6px"><tr><th>来源</th><th>判定材质</th><th>风险</th><th>可洗</th><th>建议</th><th>建议追加</th></tr>'
+    + ex.assessments.map(a=>'<tr><td>'+tag(a.source)+'</td><td>'+esc(a.judgedMaterial)+'</td><td>'+tag(a.riskLevel)
+      +'</td><td>'+(a.washable?"是":"否")+'</td><td>'+esc(a.recommendation)+'</td><td>'+money(a.suggestedSurcharge)+'</td></tr>').join("")
+    + '</table>';
+}
+function renderRounds(ex){
+  return ex.quoteRounds.map(rw=>{
+    const r=rw.round;
+    let opts = rw.options.map(o=>
+      '<div class="opt'+(o.selectable?"":" disabled")+'"><div>'+tag(o.type)
+       +' <span class="hint">'+esc(o.explanation)+(o.etaImpactHours?('（ETA +'+o.etaImpactHours+'h）'):"")+'</span></div>'
+       +'<div class="price">'+money(o.totalPrice)+(o.delta?(' <span class="hint">Δ'+money(o.delta)+'</span>'):"")+'</div></div>'
+    ).join("");
+    return '<div class="quote"><div class="quote-head">'+tag(r.status)
+      + '<b>'+esc(r.quoteNo)+'</b> 第'+r.version+'版 · 触发：'+esc(r.reason)
+      + '<span class="muted">原价 '+money(r.basePrice)+' / 规则建议追加 '+money(r.surchargeAmount)+'</span>'
+      + '<span class="hint" style="margin-left:auto">下发 '+dt(r.issuedAt)+'</span></div>'
+      + opts + '<div class="hint" style="padding:6px 12px">规则命中：'+esc(r.ruleTrace)+'</div></div>';
+  }).join("");
+}
+function renderFeedbacks(ex){
+  if(!ex.feedbacks || !ex.feedbacks.length) return '<div class="muted">客户暂未反馈</div>';
+  return '<table><tr><th>时间</th><th>动作</th><th>方案</th><th>主张责任</th><th>备注</th></tr>'
+    + ex.feedbacks.map(f=>'<tr><td>'+dt(f.createdAt)+'</td><td>'+tag(f.action)+'</td><td>'+(f.optionType?tag(f.optionType):"-")
+      +'</td><td>'+(f.claimedResponsibility?tag(f.claimedResponsibility):"-")+'</td><td>'+esc(f.note)+'</td></tr>').join("")
+    + '</table>';
+}
+
+function renderException(ex){
+  const e=ex.exception;
+  return '<div class="ex-box"><div class="ex-head">'+tag(e.category)+tag(e.status)
+    + '<b>'+esc(e.exceptionNo)+'</b>'+tag(e.source)+tag(e.severity)
+    + '<span class="muted" style="margin-left:auto">决策截止 '+dt(e.decideDeadline)+'</span></div>'
+    + '<div class="ex-body">'
+    + '<div>'+esc(e.description)+'</div>'
+    + '<div class="grid g3" style="margin:8px 0">'
+    + kv("登记材质",esc(e.claimedMaterial))+kv("识别材质",esc(e.observedMaterial))
+    + kv("处理建议",esc(e.suggestedAction))+kv("责任归属",tag(e.responsibility))
+    + kv("版本","v"+e.version)+kv("结论",esc(e.resolution))
+    + '</div>'
+    + '<b>原始/补拍证据</b>'+renderEvidence(ex)
+    + '<div style="margin-top:8px"><b>各方研判（不一致时均保留）</b></div>'+renderAssessments(ex)
+    + '<div style="margin-top:8px"><b>报价版本（历史版本不覆盖）</b></div>'+renderRounds(ex)
+    + '<div style="margin-top:8px"><b>客户反馈</b></div>'+renderFeedbacks(ex)
+    + (ex.manualReviews && ex.manualReviews.length ? '<div style="margin-top:8px"><b>人工复核</b>'
+      + ex.manualReviews.map(m=>'<div class="kv" style="margin-top:4px">'+esc(m.reviewNo)+' '+tag(m.result)
+        +' '+esc(m.conclusion||"")+'</div>').join("")+'</div>' : "")
+    + customerExceptionActions(ex)
+    + '</div></div>';
+}
+
+// 客户在档案页直接确认/拒绝/复核/撤回（按最新报价版本与衣物状态）
+function customerExceptionActions(ex){
+  if(!ME || ME.role!=="CUSTOMER") return "";
+  const eid = ex.exception.id;
+  const latest = ex.quoteRounds.length ? ex.quoteRounds[ex.quoteRounds.length-1].round : null;
+  let btns = "";
+  if(latest && latest.status==="ISSUED"){
+    btns += '<button class="small" onclick="decide('+eid+',\'confirm\')">确认追加报价</button>'
+      + '<button class="small ghost" onclick="decide('+eid+',\'keep\')">拒绝·维持原价继续</button>'
+      + '<button class="small ghost" onclick="decide('+eid+',\'basic\')">拒绝·仅基础处理</button>'
+      + '<button class="small ghost" onclick="decide('+eid+',\'refund\')">拒绝·原路退回</button>'
+      + '<button class="small ghost" onclick="decide('+eid+',\'review\')">申请人工复核</button>';
+  }
+  if(e.status==="CONFIRMED_SURCHARGE"){
+    btns += '<button class="small ghost" onclick="decide('+eid+',\'withdraw\')">确认后排产前撤回</button>';
+  }
+  return btns ? '<div class="actions" style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px">'
+    + '<b>客户操作：</b><br>'+btns+'</div>' : "";
+}
+
+async function decide(eid, kind){
+  const note = prompt("备注（可留空）","") ?? "";
+  let path, body;
+  if(kind==="confirm"){ path="/api/decisions/exceptions/"+eid+"/confirm"; body={note}; }
+  else if(kind==="withdraw"){ path="/api/decisions/exceptions/"+eid+"/withdraw"; body={note}; }
+  else if(kind==="review"){ path="/api/decisions/exceptions/"+eid+"/manual-review"; body={note:note||"申请人工复核"}; }
+  else if(kind==="refund"){ path="/api/decisions/exceptions/"+eid+"/reject"; body={mode:"REFUND",note}; }
+  else if(kind==="keep"){ path="/api/decisions/exceptions/"+eid+"/reject"; body={mode:"CONTINUE",continueOption:"KEEP_ORIGINAL_PRICE",note}; }
+  else if(kind==="basic"){ path="/api/decisions/exceptions/"+eid+"/reject"; body={mode:"CONTINUE",continueOption:"BASIC_TREATMENT_ONLY",note}; }
+  await api(path,{method:"POST",body:JSON.stringify(body)});
+  alert("操作成功"); load();
+}
+
+// 员工操作面板：取件/质检/建异常/回收/关单/缺项补齐/支付重试
+function renderActions(){
+  const el = document.getElementById("actions");
+  if(!ME){ el.innerHTML=""; return; }
+  const o = DATA.order, items = DATA.items||[];
+  let h = "";
+  if(ME.role==="PICKUP"){
+    if(o.status==="CREATED") h+=btn("骑手确认取件（建档+预授权）","pickupConfirm()");
+    if(o.status==="PICKED_UP") h+=btn("送达门店质检","pickupArrive()");
+    const openRec = (DATA.items||[]).flatMap(c=>c.recoveryTasks||[]).filter(t=>t.status==="DISPATCHED");
+    openRec.forEach(t=>h+=btn("完成回收任务 "+t.taskNo,"recoveryDone("+t.id+")"));
+  }
+  if(ME.role==="STORE_MANAGER" || ME.role==="CS" || ME.role==="FACTORY"){
+    items.forEach(c=>{
+      const it=c.item;
+      if(it.status==="STORE_QC"){
+        h+=btn("质检通过 "+it.itemCode,"qcPass("+it.id+")");
+        h+=btn("建异常("+it.itemCode+")","createEx("+it.id+")");
+      }
+    });
+    h+=btn("执行关单校验/结算","doCloseout()");
+    (DATA.closeoutBlocks||[]).forEach(b=>h+=btn("补齐缺项 #"+b.id+" "+b.checkItem,"resolveBlock("+b.id+")"));
+    h+=btn("扫描客户超时未决策","timeoutSweep()");
+  }
+  if(ME.role==="FINANCE"){
+    h+=btn("执行关单校验/结算","doCloseout()");
+    if(DATA.payment) (DATA.payment.events||[]).filter(e=>!e.applied).forEach(e=>
+      h+=btn("重试失败支付回调 #"+e.id,"retryPay("+e.id+")"));
+  }
+  if(ME.role==="DELIVERY" && o.status==="READY_FOR_DELIVERY") h+=btn("执行交付","doDeliver()");
+  el.innerHTML = h || '<span class="hint">当前角色在此订单状态下暂无待办操作（可浏览核对档案）。</span>';
+}
+function btn(label,fn){return '<button class="small" onclick="'+fn+'" style="margin:3px 6px 3px 0">'+label+'</button>';}
+async function pickupConfirm(){
+  const loc=prompt("取件位置（经纬度/地址）","客户地址 GPS"); if(!loc) return;
+  await api("/api/pickup-flow/orders/"+OID+"/confirm",{method:"POST",body:JSON.stringify({location:loc,customerSign:"客户确认"})});
+  alert("已取件建档并预授权"); load();
+}
+async function pickupArrive(){ await api("/api/pickup-flow/orders/"+OID+"/arrive-store",{method:"POST"}); alert("已到店"); load(); }
+async function qcPass(id){
+  const m=prompt("实际识别材质",""); if(m===null) return;
+  await api("/api/pickup-flow/items/"+id+"/qc-pass",{method:"POST",body:JSON.stringify({observedMaterial:m,conclusion:"与订单一致"})});
+  alert("质检通过"); load();
+}
+async function createEx(id){
+  const cat=prompt("异常类别 MATERIAL_MISMATCH/HIGH_RISK_STAIN/ACCESSORY_MISSING/PERMANENT_FLAW","MATERIAL_MISMATCH"); if(!cat)return;
+  const desc=prompt("异常描述",""); if(desc===null)return;
+  const mat=prompt("实际识别材质（可留空）","")||"";
+  await api("/api/exceptions",{method:"POST",body:JSON.stringify({itemId:id,category:cat,description:desc,
+    observedMaterial:mat,suggestedAction:"按规则处理",severity:"MEDIUM",
+    photoUrl:"http://img/ex-"+id+"-"+Date.now()+".jpg",capturedAt:new Date().toISOString().slice(0,19),
+    location:"门店质检台",riskLevel:"MEDIUM",washable:true})});
+  alert("异常已创建并自动规则报价"); load();
+}
+async function recoveryDone(id){
+  const u=prompt("回收交接留影URL","http://img/return-"+id+".jpg"); if(!u)return;
+  await api("/api/recovery/tasks/"+id+"/complete",{method:"POST",body:JSON.stringify({handoverPhotoUrl:u})});
+  alert("回收完成"); load();
+}
+async function doCloseout(){
+  const d=await api("/api/ops/orders/"+OID+"/closeout",{method:"POST"});
+  alert(d.blocks && d.blocks.length ? "缺项 "+d.blocks.length+" 项，已转人工队列" : "结算完成，订单已关单"); load();
+}
+async function resolveBlock(id){
+  const r=prompt("补齐处理说明",""); if(!r)return;
+  await api("/api/ops/closeout-blocks/"+id+"/resolve",{method:"POST",body:JSON.stringify({resolution:r})});
+  alert("缺项已补齐，系统将自动重跑结算"); load();
+}
+async function timeoutSweep(){ const d=await api("/api/ops/exceptions/timeout-sweep",{method:"POST"}); alert("转人工 "+d.movedToManual+" 件"); load(); }
+async function retryPay(id){ await api("/api/payments/events/"+id+"/retry",{method:"POST"}); alert("支付回调已重放"); load(); }
+async function doDeliver(){ await api("/api/delivery/orders/"+OID+"/deliver",{method:"POST",body:JSON.stringify({deliveryPhotoUrl:"http://img/deliver.jpg"})}); alert("交付完成"); load(); }
+
+
+function renderPayment(){
+  const el = document.getElementById("payment");
+  if(!DATA.payment){ el.innerHTML = '<div class="muted">暂无支付单（骑手确认取件后生成预授权）</div>'; return; }
+  const p = DATA.payment.payment, evs = DATA.payment.events;
+  el.innerHTML = '<div class="grid g3">'
+    + kv("支付单号",esc(p.paymentNo))+kv("状态",tag(p.status))
+    + kv("预授权冻结",money(p.preauthAmount))+kv("已请款",money(p.capturedAmount))
+    + kv("已退款",money(p.refundedAmount))
+    + kv("渠道流水",esc(p.channelTxNo))
+    + '</div>'
+    + (p.lastCallbackError?'<div style="margin-top:8px;color:var(--bad)">最近回调失败：'+esc(p.lastCallbackError)+'</div>':'')
+    + '<table style="margin-top:10px"><tr><th>#</th><th>类型</th><th>金额</th><th>结果</th><th>幂等键</th><th>已应用</th><th>时间</th><th>错误</th></tr>'
+    + evs.map(e=>'<tr><td>'+e.id+'</td><td>'+tag(e.type)+'</td><td>'+money(e.amount)+'</td><td>'+tag(e.result)
+      +'</td><td class="hint">'+esc(e.idempotencyKey)+'</td><td>'+(e.applied?"是":"否")+'</td><td>'+dt(e.receivedAt)
+      +'</td><td>'+esc(e.errorMessage)+'</td></tr>').join("") + '</table>';
+}
+
+function renderCloseout(){
+  const el = document.getElementById("closeout");
+  const s = DATA.settlement, blocks = DATA.closeoutBlocks||[];
+  let html = '';
+  if(s){
+    html += '<div class="grid g3">'
+      + kv("结算状态",tag(s.status))+kv("最终应收",money(s.finalReceivable))
+      + kv("已请款",money(s.capturedAmount))+kv("退款",money(s.refundedAmount))
+      + kv("补偿",money(s.compensatedAmount))+kv("结算时间",dt(s.settledAt))+'</div>'
+      + (s.note?'<div style="margin-top:8px" class="hint">'+esc(s.note)+'</div>':'');
+  } else html += '<div class="muted">尚未执行关单结算</div>';
+  if(blocks.length){
+    html += '<h4 style="color:var(--bad)">⛔ 缺项阻断（'+blocks.length+'），已转人工队列</h4><table>'
+      + '<tr><th>校验项</th><th>明细</th><th>状态</th></tr>'
+      + blocks.map(b=>'<tr><td>'+tag(b.checkItem)+'</td><td>'+esc(b.detail)+'</td><td>'+tag(b.status)+'</td></tr>').join("")
+      + '</table>';
+  }
+  el.innerHTML = html;
+}
+
+function renderTimeline(){
+  const list = DATA.timeline||[];
+  document.getElementById("timeline").innerHTML = list.map(e=>
+    '<div class="tl"><div><span class="type">'+esc(e.type)+'</span>'
+    + '<span class="tag t-blue" style="margin-right:6px">'+esc(e.actorRole)+(e.actorId?'#'+e.actorId:'')+'</span>'
+    + (e.refNo?'<code>'+esc(e.refNo)+'</code>':"")+'</div>'
+    + '<div>'+esc(e.detail)+'</div><div class="when">'+dt(e.createdAt)+'</div></div>'
+  ).join("") || '<div class="muted">暂无事件</div>';
+}
+</script>
+</body>
+</html>

@@ -37,11 +37,10 @@ public class PickupService {
         photo.setUploadedBy(uploader.getId());
         photo = photoRepo.save(photo);
 
-        // 收衣阶段：必需照片齐了之后自动进入 PHOTOGRAPHED
+        // 收衣阶段：必需照片齐了之后自动进入 PHOTOGRAPHED（等待骑手确认取件）
         if (item.getStatus() == GarmentStatus.REGISTERED && isPickupStage(stage) && requiredStagesDone(item)) {
             item.setStatus(GarmentStatus.PHOTOGRAPHED);
             itemRepo.save(item);
-            maybeMarkOrderPickedUp(item.getOrderId());
         }
         return photo;
     }
@@ -87,18 +86,6 @@ public class PickupService {
             if (!found) return false;
         }
         return true;
-    }
-
-    private void maybeMarkOrderPickedUp(Long orderId) {
-        List<GarmentItem> items = itemRepo.findByOrderIdOrderByIdAsc(orderId);
-        boolean allPhotographed = items.stream().allMatch(i -> i.getStatus() == GarmentStatus.PHOTOGRAPHED);
-        if (allPhotographed && !items.isEmpty()) {
-            LaundryOrder order = orderRepo.findById(orderId).orElseThrow();
-            if (order.getStatus() == OrderStatus.CREATED) {
-                order.setStatus(OrderStatus.PICKED_UP);
-                orderRepo.save(order);
-            }
-        }
     }
 
     public List<GarmentPhoto> photosOf(Long itemId) {
